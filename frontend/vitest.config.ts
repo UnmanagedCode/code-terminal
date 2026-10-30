@@ -6,5 +6,7 @@ export default mergeConfig(viteConfig, defineConfig({
     environment: 'happy-dom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
+    // The palette guard reads the fallback sheet's text (`?raw`); other CSS stays stubbed.
+    css: { include: [/cc-theme-fallback\.css/] },
   },
 }));
