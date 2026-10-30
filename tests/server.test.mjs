@@ -91,8 +91,8 @@ test('every response carries the CSP and nosniff: 200, 404, 503, 500, API refusa
   }
 });
 
-test('standalone, every api route but health answers 503 HOST_UNAVAILABLE', async () => {
-  const { api, startPlugin } = await import('./helpers.mjs');
+test('standalone, every api route but health answers 503 HOST_UNAVAILABLE, whatever the Host', async () => {
+  const { api, request, startPlugin } = await import('./helpers.mjs');
   const plugin = await startPlugin();
   try {
     for (const [m, p, body] of [['GET', '/api/projects'], ['GET', '/api/sessions'], ['POST', '/api/sessions', {}], ['GET', '/api/layouts/a']]) {
@@ -101,5 +101,8 @@ test('standalone, every api route but health answers 503 HOST_UNAVAILABLE', asyn
       assert.equal(r.json.code, 'HOST_UNAVAILABLE');
     }
     assert.equal((await api(plugin.port, 'GET', '/api/health')).status, 200);
+    // The page opened straight on the backend's port, as `npm start` serves it.
+    const direct = await request(plugin.port, { path: '/api/projects', headers: { host: `127.0.0.1:${plugin.port}` } });
+    assert.equal(direct.json.code, 'HOST_UNAVAILABLE');
   } finally { await plugin.close(); }
 });

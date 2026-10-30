@@ -30,12 +30,15 @@ export function App() {
   const refreshSessions = useCallback(() => { api.listSessions().then(setSessions, () => {}); }, []);
 
   useEffect(() => {
-    api.listProjects().then(setProjects, (e: unknown) => {
+    let poll: ReturnType<typeof setInterval> | undefined;
+    api.listProjects().then((list) => {
+      setProjects(list);
+      refreshSessions();
+      poll = setInterval(refreshSessions, SESSIONS_POLL_MS);
+    }, (e: unknown) => {
       if (e instanceof api.ApiError) setFatal(e);
       else report(e);
     });
-    refreshSessions();
-    const poll = setInterval(refreshSessions, SESSIONS_POLL_MS);
     const onPop = () => setSelected(readRoute());
     window.addEventListener('popstate', onPop);
     return () => { clearInterval(poll); window.removeEventListener('popstate', onPop); };
@@ -131,7 +134,9 @@ export function App() {
     return (
       <main className="page">
         <h1>Code Terminal</h1>
-        <p>{fatal.code === 'HOST_UNAVAILABLE' ? 'This page needs code-conductor behind it: open it through code-conductor.' : fatal.message}</p>
+        <p>{fatal.code === 'HOST_UNAVAILABLE' || fatal.code === 'REQUEST_REFUSED'
+          ? 'This page needs code-conductor behind it: open it through code-conductor.'
+          : fatal.message}</p>
       </main>
     );
   }

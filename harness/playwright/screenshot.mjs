@@ -1,4 +1,5 @@
-// Boots the plugin backend, screenshots the placeholder page, tears down.
+// Boots the plugin backend standalone (no code-conductor behind it), screenshots
+// the page telling the user to open it through code-conductor, tears down.
 // Usage: node harness/playwright/screenshot.mjs [out.png]   (needs CC_PROJECTS_ROOT)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,6 +17,7 @@ try {
   await withPage(async (page) => {
     await page.goto(srv.url);
     await page.getByRole('heading', { name: 'Code Terminal' }).waitFor();
+    await page.getByText('open it through code-conductor').waitFor();
     await page.screenshot({ path: out });
   }, { viewport: { width: 1024, height: 640 } });
   console.log(`screenshot: ${out}`);
