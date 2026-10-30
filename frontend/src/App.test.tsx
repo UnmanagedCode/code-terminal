@@ -43,13 +43,15 @@ const p2: Pane = { kind: 'pane', id: 'p2', sessionId: S2, worktree: null };
 const info = (id: string, ordinal: number) => ({ id, ordinal, project: 'alpha', worktree: null, state: { kind: 'running' }, title: '' });
 
 // `listed`: what the backend's session list answers, which may lag a kill.
-function hostWithTwoPanes(listed: unknown[] = []) {
+// `deleteStatus`: what the backend answers a kill.
+function hostWithTwoPanes(listed: unknown[] = [], deleteStatus = 204) {
   const calls: { url: string; init: RequestInit }[] = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init });
     if (url === 'api/projects') return json(200, { projects: [{ name: 'alpha', path: '/p/alpha', system: 'local', remoteId: null, worktrees: [], terminal: { state: 'available' } }] });
     if (url === 'api/layouts/alpha' && (init.method ?? 'GET') === 'GET') return json(200, { tree: { kind: 'split', dir: 'row', ratio: 0.5, a: p1, b: p2 } });
     if (url === 'api/sessions') return json(200, { sessions: listed });
+    if (init.method === 'DELETE' && deleteStatus !== 204) return json(deleteStatus, { code: 'HOST_UNREACHABLE', error: 'code-conductor is unreachable' });
     return new Response(null, { status: 204 });
   }));
   history.replaceState(null, '', '?project=alpha');
@@ -102,4 +104,25 @@ test('a closed shell leaves the sidebar at once and stays gone even while the se
   await waitFor(() => expect(screen.getByRole('button', { name: /^shell 1 / })).toBeTruthy());
   expect(screen.queryByRole('button', { name: /^shell 2 / })).toBeNull();
   expect(screen.queryByRole('region', { name: 'pane p2' })).toBeNull();
+});
+
+test('a kill the backend failed (502) leaves the still-running shell listed after the refresh', async () => {
+  const calls = hostWithTwoPanes([info(S1, 1), info(S2, 2)], 502);
+  render(<App />);
+  expect(await screen.findByRole('button', { name: /^shell 2 / })).toBeTruthy();
+  const listingsBefore = calls.filter((c) => c.url === 'api/sessions').length;
+  fireEvent.click(screen.getByRole('button', { name: 'Close p2' }));
+  await waitFor(() => expect(calls.filter((c) => c.url === 'api/sessions').length).toBeGreaterThan(listingsBefore));
+  expect(await screen.findByRole('button', { name: /^shell 2 / })).toBeTruthy();
+});
+
+test('a kill answered 404 (already gone) keeps the shell out of a stale listing', async () => {
+  const calls = hostWithTwoPanes([info(S1, 1), info(S2, 2)], 404);
+  render(<App />);
+  await screen.findByRole('button', { name: /^shell 2 / });
+  const listingsBefore = calls.filter((c) => c.url === 'api/sessions').length;
+  fireEvent.click(screen.getByRole('button', { name: 'Close p2' }));
+  await waitFor(() => expect(calls.filter((c) => c.url === 'api/sessions').length).toBeGreaterThan(listingsBefore));
+  await screen.findByRole('button', { name: /^shell 1 / });
+  expect(screen.queryByRole('button', { name: /^shell 2 / })).toBeNull();
 });

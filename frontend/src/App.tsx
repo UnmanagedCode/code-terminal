@@ -33,11 +33,15 @@ export function App() {
   const refreshSessions = useCallback(() => {
     api.listSessions().then((list) => setSessions(list.filter((s) => !killed.current.has(s.id))), () => {});
   }, []);
-  // Drops a session from the list at once, then refreshes once the backend has answered the kill.
+  // Drops a session from the list at once, then refreshes once the backend has
+  // answered the kill. A kill that failed (anything but 404, which means the
+  // session is already gone) leaves the shell running, so it is listed again.
   const kill = useCallback((sessionId: string) => {
     killed.current.add(sessionId);
     setSessions((list) => list.filter((s) => s.id !== sessionId));
-    api.killSession(sessionId).catch(() => {}).finally(refreshSessions);
+    api.killSession(sessionId).catch((e: unknown) => {
+      if (!(e instanceof api.ApiError && e.status === 404)) killed.current.delete(sessionId);
+    }).finally(refreshSessions);
   }, [refreshSessions]);
 
   useEffect(() => {

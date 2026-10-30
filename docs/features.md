@@ -9,7 +9,7 @@
   - **+** (`New shell in <project>`): opens a shell and puts it beside the focused pane, or as the only pane;
   - a **worktree picker** (only when the project has worktrees): main checkout by default, else one of cc's worktrees; the next **+** opens there;
   - a note when terminals cannot open there: cc's own reason (which names the provider) for a System without a pty — **+** is disabled; "System unreachable: …" for a System cc cannot reach — **+** stays enabled, so the user can retry;
-  - its shells, nested, each labelled `shell N` (its number within the project, never reused while the backend runs) followed by the program's title, or else its worktree (`main` for the main checkout), and its state when not running; clicking one focuses its pane (a shell no pane shows gets one). A closed shell leaves the list at once.
+  - its shells, nested, each labelled `shell N` (its number within the project, never reused while the backend runs) followed by the program's title, or else its worktree (`main` for the main checkout), and its state when not running; clicking one focuses its pane (a shell no pane shows gets one). A closed shell leaves the list at once; if the backend could not kill it, it is listed again.
 - **Workspace** — the selected project's split layout. Width capped by cc's session width (`--cc-session-width`).
 - Layouts persist per project on the backend, so the arrangement survives a reload or another browser. A change still waiting to be saved (a closed pane, a dragged divider) is sent when the page is hidden or reloaded.
 
