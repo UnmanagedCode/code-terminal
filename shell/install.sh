@@ -22,8 +22,10 @@ if [ ! -f "$dir/.complete" ]; then
     shift 2
   done
   : > "$tmp/.complete"
-  # Another installer may have won the race; its copy is identical.
-  mv "$tmp" "$dir" 2>/dev/null || rm -rf "$tmp"
+  # Another installer may have won the race; its copy is identical. When $dir
+  # appears between the check and mv, mv moves $tmp inside it: remove that too.
+  if [ ! -e "$dir" ]; then mv "$tmp" "$dir" 2>/dev/null || :; fi
+  rm -rf "$tmp" "$dir/${tmp##*/}"
 fi
 # The login shell as cc picks it: the passwd entry, then $SHELL, then /bin/sh.
 shell=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7) || shell=

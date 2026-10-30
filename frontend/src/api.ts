@@ -17,14 +17,17 @@ export type SessionState =
   | { kind: 'exited'; code: number | null; signal: string | null }
   | { kind: 'failed'; code: string | null; error: string }
   | { kind: 'ended' };
-export type SessionInfo = { id: string; project: string; worktree: string | null; state: SessionState; title: string };
+// `ordinal`: the shell's number within its project (1, 2, …), never reused.
+export type SessionInfo = { id: string; ordinal: number; project: string; worktree: string | null; state: SessionState; title: string };
 
 export class ApiError extends Error {
   constructor(readonly status: number, readonly code: string | null, message: string) { super(message); }
 }
 
-async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const init: RequestInit & { headers: Record<string, string> } = { method, headers: {} };
+// `keepalive` lets a request outlive the page (a save or kill sent as it unloads);
+// the browser still sends Origin, so the backend's guard admits it.
+async function call<T>(method: string, url: string, body?: unknown, { keepalive = false } = {}): Promise<T> {
+  const init: RequestInit & { headers: Record<string, string> } = { method, headers: {}, ...(keepalive ? { keepalive } : {}) };
   // Every state-changing request is JSON: the backend refuses anything else.
   if (method !== 'GET') init.headers['content-type'] = 'application/json';
   if (body !== undefined) init.body = JSON.stringify(body);
@@ -43,7 +46,8 @@ export const listProjects = () => call<{ projects: ProjectInfo[] }>('GET', 'api/
 export const listSessions = () => call<{ sessions: SessionInfo[] }>('GET', 'api/sessions').then((r) => r.sessions);
 export const createSession = (project: string, worktree: string | null, size: { cols: number; rows: number }) =>
   call<{ id: string }>('POST', 'api/sessions', { project, worktree, cols: size.cols, rows: size.rows }).then((r) => r.id);
-export const killSession = (id: string) => call<null>('DELETE', `api/sessions/${encodeURIComponent(id)}`);
+export const killSession = (id: string) => call<null>('DELETE', `api/sessions/${encodeURIComponent(id)}`, undefined, { keepalive: true });
 export const getLayout = (project: string) =>
   call<{ tree: Layout | null }>('GET', `api/layouts/${encodeURIComponent(project)}`).then((r) => r.tree);
-export const putLayout = (project: string, tree: Layout | null) => call<null>('PUT', `api/layouts/${encodeURIComponent(project)}`, { tree });
+export const putLayout = (project: string, tree: Layout | null) =>
+  call<null>('PUT', `api/layouts/${encodeURIComponent(project)}`, { tree }, { keepalive: true });

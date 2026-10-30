@@ -141,6 +141,7 @@ button, select { font: inherit; }
   cursor: pointer;
 }
 .shell-link:hover { color: var(--foreground); }
+.shell-ordinal { color: var(--sidebar-foreground); }
 
 /* Split layout */
 .split { display: flex; flex: 1; min-width: 0; min-height: 0; }

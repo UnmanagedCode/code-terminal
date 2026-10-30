@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import xtermHeadless from '@xterm/headless';
 import {
-  Session, SCROLLBACK_LINES, CLIENT_HIGH_WATER_BYTES, UPSTREAM_MAX_MESSAGE_BYTES,
+  Session, SCROLLBACK_LINES, CLIENT_HIGH_WATER_BYTES, MIRROR_HIGH_WATER_BYTES, UPSTREAM_MAX_MESSAGE_BYTES, CLOSE_DETACHED, CLOSE_KILLED,
 } from '../lib/session.js';
 import { quietLog, until } from './helpers.mjs';
 
@@ -103,7 +103,8 @@ test('a second attach detaches the first', async () => {
   const first = await attached(s);
   const second = await attached(s);
   assert.ok(first.textOut().some((m) => m.type === 'detached'));
-  assert.notEqual(first.closed, null);
+  assert.equal(first.closed, CLOSE_DETACHED);
+  assert.equal(CLOSE_DETACHED, 4000);
   assert.equal(second.closed, null);
   s.kill();
 });
@@ -166,12 +167,35 @@ test('a backed-up upstream pauses browser input until it drains', async () => {
   s.kill();
 });
 
-test("the mirror's own query replies never reach the upstream", async () => {
+test("the mirror's own query replies never reach the upstream, as binary or text", async () => {
   const { s, upstream } = newSession();
   output(upstream, '\x1b[c\x1b[6n\x1b[>c');
   // The snapshot is taken after the mirror has parsed everything before it, queries included.
-  await attached(s);
-  assert.equal(upstream.sent.filter((m) => m.binary).length, 0);
+  await attached(s, { cols: 40, rows: 10 });
+  assert.deepEqual(upstream.sent, [{ data: JSON.stringify({ type: 'resize', cols: 40, rows: 10 }), binary: false }],
+    'the upstream got the attach resize and nothing else');
+  s.kill();
+});
+
+test('a killed session closes its client with 4001', async () => {
+  const { s } = newSession();
+  const client = await attached(s);
+  s.kill();
+  assert.equal(client.closed, CLOSE_KILLED);
+  assert.equal(CLOSE_KILLED, 4001);
+});
+
+test('output the mirror has not parsed yet pauses the upstream past MIRROR_HIGH_WATER_BYTES with no client, and resumes once parsed', async () => {
+  const { s, upstream } = newSession();
+  const piece = 'z'.repeat(64 * 1024);
+  let sent = 0;
+  while (!upstream.paused && sent <= MIRROR_HIGH_WATER_BYTES + piece.length) {
+    output(upstream, piece);
+    sent += piece.length;
+  }
+  assert.equal(upstream.paused, true, `not paused after ${sent} unparsed bytes`);
+  assert.ok(sent >= MIRROR_HIGH_WATER_BYTES);
+  await until(() => !upstream.paused, 10000, 'the mirror to catch up');
   s.kill();
 });
 

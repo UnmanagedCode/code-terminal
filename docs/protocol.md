@@ -17,7 +17,9 @@ The plugin backend's own surface (REST + one WebSocket), the rules every request
 | `Host`'s port (default port when absent) is not the backend's own listen port | always | 403 |
 | `Content-Type` is `application/json` (checked on the header, body or not) | `POST`/`PUT`/`DELETE` | 415 |
 
-- Behind cc's `/plugins/code-terminal/` proxy and every code-hub mode, `Host` and `Origin` arrive unchanged, so `Host` names the proxy's port. Only a direct dial or a DNS-rebinding dial names the backend's port.
+- Behind cc's `/plugins/code-terminal/` proxy and every code-hub mode, `Host` and `Origin` arrive unchanged, so `Host` names the proxy's port. Only a direct dial, or a page DNS-rebound onto the backend's own port, names the backend's port.
+- **What the guard covers:** a cross-site page (its Origin does not match Host), a cross-site form or `no-cors` post (no JSON content type, or no Origin), a direct dial of the backend, and DNS rebinding onto the backend's own port.
+- **What it does not cover:** DNS rebinding onto **cc's** port. A page whose name rebinds to cc's address reaches the plugin through cc's proxy with a matching `Host`/`Origin` pair (`evil.test:<cc-port>` on both), byte-identical to a legitimate visit to cc, and passes. That gap is cc's: cc's own API has no authentication and the same exposure.
 - An upgrade refusal is a raw `403` (or `404`) with the CSP and `nosniff` headers and no body, before any WebSocket handshake.
 - HTTP refusals are JSON: `{code: 'REQUEST_REFUSED' | 'UNSUPPORTED_MEDIA_TYPE', error}`.
 - **Standalone** (no `CONDUCTOR_URL` or no `PROJECTS_ROOT`): every `/api/*` route but health answers `503 {code: 'HOST_UNAVAILABLE'}` before the guard runs.
@@ -30,7 +32,7 @@ All under the plugin root (`/plugins/code-terminal/` inside cc). Bodies are JSON
 |---|---|---|---|
 | `GET /api/health` | — | `200 {ok: true}` | — |
 | `GET /api/projects` | — | `200 {projects: [{name, path, system, remoteId, worktrees: [{name, path, branch}], terminal}]}` | cc's refusal passed through |
-| `GET /api/sessions` | — | `200 {sessions: [{id, project, worktree, state, title}]}` | — |
+| `GET /api/sessions` | — | `200 {sessions: [{id, ordinal, project, worktree, state, title}]}` | — |
 | `POST /api/sessions` | `{project, worktree, cols, rows}` | `201 {id}` | `400 INVALID_ARGUMENT`; `SHELL_SETUP_FAILED`; cc's terminal refusals with cc's status, code and error |
 | `DELETE /api/sessions/:id` | — | `204` | `404 SESSION_UNKNOWN` |
 | `GET /api/layouts/:project` | — | `200 {tree}` (`null` = none saved) | `400 INVALID_ARGUMENT` (unusable name) |
@@ -48,7 +50,8 @@ All under the plugin root (`/plugins/code-terminal/` inside cc). Bodies are JSON
 
 - `POST /api/sessions` validation: `project` matches cc's project-name rule (`validProjectName`, `lib/shellLaunch.js`); `worktree` is a non-empty string or `null` (main checkout); `cols`/`rows` integers in `1..PTY_DIM_MAX` (`lib/session.js`).
 - `state` is one of `{kind: 'running'}`, `{kind: 'exited', code, signal}`, `{kind: 'failed', code, error}`, `{kind: 'ended'}`.
-- `title` is the program's last OSC 0/2 title, capped at `TITLE_MAX_CHARS` (`lib/session.js`).
+- `ordinal` numbers a project's shells 1, 2, … in creation order; a number is not reused while the backend runs.
+- `title` is the program's last OSC 0/2 title, capped at `TITLE_MAX_CHARS` (`shared/terminal.js`); the page clamps titles it reads from the stream the same way.
 - The plugin's own refusals around cc:
 
 | Status | `code` | When |

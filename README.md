@@ -19,7 +19,7 @@ Details: [docs/features.md](docs/features.md).
 - **Manifest:** `conductor.plugin.json` (`id` `code-terminal`, `pluginApi` 1, health path `/api/health`).
 - **Terminals:** the backend opens each one through cc's `GET /api/terminal` WebSocket and keeps a headless mirror of it for reattach; installs its shell integration through cc's `POST /api/exec`.
 - **Serving:** `server.js` listens on `127.0.0.1:$PORT` (default 4000), serves an allowlist of files from `frontend/dist`, and sends a CSP and `nosniff` on every response.
-- **Security:** every upgrade and API request passes an Origin/Host guard that also refuses the backend's own port (direct dial, DNS rebinding); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md).
+- **Security:** every upgrade and API request passes an Origin/Host guard that refuses cross-site requests and any request naming the backend's own port (a direct dial, or DNS rebinding onto that port); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md#request-guard).
 - **Data:** `$PROJECTS_ROOT/.code-terminal/` (layouts, history, shell integration); on other Systems `$HOME/.local/state/code-terminal/`.
 - **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; route state in `?project=`; width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
 
@@ -28,7 +28,7 @@ conductor.plugin.json   plugin manifest
 server.js               backend wiring
 lib/                    backend modules (guard, cc client, sessions, probe, shell launch, layouts, api, ws)
 shell/                  shell integration installed on each System (install.sh, bashrc, zsh/)
-shared/layout.js        layout validator shared by backend and frontend
+shared/                 layout validator and terminal limits shared by backend and frontend
 frontend/               Vite app; src/**/*.test.ts(x) are Vitest tests
 tests/                  backend tests (node --test) with a fake cc; tests/integration/ need a real cc
 harness/scratch-cc.mjs  throwaway isolated cc for real-cc tests and Playwright
@@ -69,3 +69,4 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 - The 16 standard ANSI colours are xterm's defaults, which can be hard to read on the light theme.
 - One browser client per shell: attaching in a second tab detaches the first.
 - A proxy in front of cc whose public port equals the backend's listen port (e.g. a code-hub LAN relay) is refused by the request guard.
+- DNS rebinding onto **cc's** port is not stopped: such a page reaches the plugin through cc's proxy exactly as a visit to cc does. The gap is inherited from cc, whose API has no authentication either.

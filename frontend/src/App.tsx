@@ -59,15 +59,30 @@ export function App() {
     ensureLayout(selected).then((t) => setFocused((f) => (f && panes(t).some((p) => p.id === f) ? f : panes(t)[0]?.id ?? null)), report);
   }, [selected, ensureLayout, report]);
 
+  const save = useCallback((project: string) => {
+    clearTimeout(saveTimers.current.get(project));
+    saveTimers.current.delete(project);
+    api.putLayout(project, layoutsRef.current[project] ?? null).catch(report);
+  }, [report]);
+
   // Applies `fn` to a project's layout and saves it shortly after.
   const mutate = useCallback((project: string, fn: (t: Layout | null) => Layout | null) => {
     layoutsRef.current = { ...layoutsRef.current, [project]: fn(layoutsRef.current[project] ?? null) };
     setLayouts(layoutsRef.current);
     clearTimeout(saveTimers.current.get(project));
-    saveTimers.current.set(project, setTimeout(() => {
-      api.putLayout(project, layoutsRef.current[project] ?? null).catch(report);
-    }, SAVE_DEBOUNCE_MS));
-  }, [report]);
+    saveTimers.current.set(project, setTimeout(() => save(project), SAVE_DEBOUNCE_MS));
+  }, [save]);
+
+  // A save still waiting out its debounce is sent now when the page goes away
+  // (reload, navigation, closing the tab) or the app unmounts.
+  useEffect(() => {
+    const flush = () => { for (const project of [...saveTimers.current.keys()]) save(project); };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [save]);
 
   const select = useCallback((project: string) => {
     setSelected(project);

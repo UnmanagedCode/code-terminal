@@ -25,14 +25,15 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 | `shellLaunch.js` + `shell/` | integration install per System; `buildSpec` |
 | `session.js` | one terminal: upstream socket, headless mirror, one client, state, backpressure |
 | `sessionManager.js` | the registry: create (location → spec → open), get, list, kill, closeAll |
-| `layoutStore.js` | per-project layout files, atomic writes |
+| `layoutStore.js` | per-project layout files, atomic writes (a uniquely named temp file renamed over the old one) |
 | `api.js` | the REST router |
 | `wsGateway.js` | the `io` upgrade: guard → lookup → attach |
 
-`shared/layout.js` holds the layout validator and limits; the frontend imports the same file.
+`shared/layout.js` holds the layout validator and limits, and `shared/terminal.js` the terminal limits (`SCROLLBACK_LINES`, `TITLE_MAX_CHARS`); the frontend imports the same files.
 
 ## Session lifecycle
 
+- **Number:** each session gets the next per-project `ordinal` from the manager.
 - **Create:** `cc.projectLocation` → `shellLaunch.specFor` (installs on first use per System) → `cc.openTerminal`. A refusal updates the pty probe's cache and is passed to the caller; a success marks the System available.
 - **Mirror:** every upstream byte goes into an `@xterm/headless` terminal (`scrollback: SCROLLBACK_LINES`) with `@xterm/addon-serialize`. The mirror's own replies to terminal queries are never read: only the attached browser answers, so the program gets one reply.
 - **Attach:** resize (when the attach names a size) → wait until the mirror has parsed everything written so far → send `hello`, the serialized snapshot, then the output that arrived meanwhile, then live output.
@@ -54,7 +55,7 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 ## Shell integration
 
 - `shell/install.sh` (POSIX sh) runs on the target through `POST /api/exec`, as `sh -c <script> sh <base> <hash> <file> <content>…`:
-  - `umask 077`; writes the files under `<base>/shell/<hash>/` via a temp dir + rename, with a `.complete` marker; creates `<base>/history/`;
+  - `umask 077`; writes the files under `<base>/shell/<hash>/` via a temp dir + rename, with a `.complete` marker; an installer that finds the directory already there (another won the race) removes its temp dir; creates `<base>/history/`;
   - prints the login shell (passwd entry, then `$SHELL`, then `/bin/sh` — cc's own rule), `$HOME`, and `<base>`.
 - `<base>`: local → the data dir; elsewhere → empty, meaning `$HOME/.local/state/code-terminal` on the target.
 - `<hash>`: a content hash of the integration files, so a changed file installs into a new directory.
@@ -81,8 +82,8 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 
 | Module | Responsibility |
 |---|---|
-| `App.tsx` | route (`?project=`), projects, session list poll, per-project layouts (debounced save), pane actions |
-| `api.ts` | REST calls; relative URLs; JSON content type on every mutation |
+| `App.tsx` | route (`?project=`), projects, session list poll, per-project layouts (debounced save, flushed on `pagehide` and unmount), pane actions |
+| `api.ts` | REST calls; relative URLs; JSON content type on every mutation; layout saves and kills use `keepalive` so they outlive an unload |
 | `sidebar/Sidebar.tsx`, `WorktreePicker.tsx` | project rows, availability notes, New shell, nested shells |
 | `layout/tree.ts` | pure tree operations (`split`, `close`, `focusAfterClose`, `setRatio`, `updatePane`); validator from `shared/layout.js` |
 | `layout/SplitView.tsx` | recursive render; divider drag via CSSOM `flex-basis` |

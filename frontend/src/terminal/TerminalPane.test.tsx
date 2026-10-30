@@ -7,7 +7,8 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80; rows = 24; options: Record<string, unknown> = {};
     loadAddon() {} open() {} write() {} reset() {} dispose() {} focus() {}
-    onData() { return { dispose() {} }; } onBinary() { return { dispose() {} }; } onTitleChange() { return { dispose() {} }; }
+    onData() { return { dispose() {} }; } onBinary() { return { dispose() {} }; }
+    onTitleChange(fn: (t: string) => void) { titleListener = fn; return { dispose() {} }; }
     attachCustomKeyEventHandler() {} getSelection() { return ''; } hasSelection() { return false; } paste() {}
   },
 }));
@@ -15,15 +16,20 @@ vi.mock('@xterm/addon-fit', () => ({ FitAddon: class { fit() {} proposeDimension
 vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class {} }));
 
 let handlers: ConnHandlers | null = null;
+let titleListener: ((t: string) => void) | null = null;
+const reattach = vi.fn();
 vi.mock('./socket', () => ({
-  connectSession: (_id: string, _size: unknown, h: ConnHandlers) => { handlers = h; return { sendInput() {}, resize() {}, close() {} }; },
+  connectSession: (_id: string, _size: unknown, h: ConnHandlers) => { handlers = h; return { sendInput() {}, resize() {}, close() {}, reattach }; },
 }));
 
 const { TerminalPane } = await import('./TerminalPane');
+const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
 const fetchMock = vi.fn();
 beforeEach(() => {
   handlers = null;
+  titleListener = null;
+  reattach.mockClear();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
@@ -83,5 +89,24 @@ describe('TerminalPane', () => {
   test('the header buttons have accessible names', () => {
     renderPane();
     for (const name of ['Split side by side', 'Split stacked', 'Close shell']) expect(screen.getByRole('button', { name })).toBeTruthy();
+  });
+
+  test('a pane detached by another window offers Reattach here, which reattaches', async () => {
+    renderPane();
+    await enter({ kind: 'detached' });
+    expect(screen.queryByRole('button', { name: 'Restart' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reattach here' }));
+    expect(reattach).toHaveBeenCalledTimes(1);
+    act(() => handlers!.onState({ kind: 'running' }));
+    expect(screen.queryByRole('button', { name: 'Reattach here' })).toBeNull();
+  });
+
+  test("a program title is clamped to TITLE_MAX_CHARS, from the stream and from the backend's hello", async () => {
+    renderPane();
+    await waitFor(() => expect(titleListener).not.toBeNull());
+    act(() => titleListener!('t'.repeat(TITLE_MAX_CHARS * 4)));
+    expect(screen.getByText('t'.repeat(TITLE_MAX_CHARS))).toBeTruthy();
+    act(() => handlers!.onHello({ kind: 'running' }, 'h'.repeat(TITLE_MAX_CHARS + 1)));
+    expect(screen.getByText('h'.repeat(TITLE_MAX_CHARS))).toBeTruthy();
   });
 });

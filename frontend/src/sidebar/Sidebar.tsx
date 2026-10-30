@@ -20,7 +20,8 @@ function availabilityNote(p: ProjectInfo) {
   return <p className={`project-note project-note-${t.state}`}>{prefix}{t.reason}</p>;
 }
 
-function sessionLabel(s: SessionInfo) {
+// `shell N`, then the program's title, or else the worktree, then the state when not running.
+function sessionDetail(s: SessionInfo) {
   const state = s.state.kind === 'running' ? '' : ` (${s.state.kind})`;
   return `${s.title || s.worktree || 'main'}${state}`;
 }
@@ -41,7 +42,9 @@ function ProjectRow({ project: p, sessions, selected, onSelect, onNewShell, onFo
         <ul className="shells">
           {sessions.map((s) => (
             <li key={s.id}>
-              <button type="button" className="shell-link" onClick={() => onFocusSession(p.name, s.id)}>{sessionLabel(s)}</button>
+              <button type="button" className="shell-link" title={`shell ${s.ordinal} · ${sessionDetail(s)}`} onClick={() => onFocusSession(p.name, s.id)}>
+                <span className="shell-ordinal">shell {s.ordinal}</span> <span className="shell-detail">{sessionDetail(s)}</span>
+              </button>
             </li>
           ))}
         </ul>

@@ -65,10 +65,33 @@ test('a cross-site or non-JSON PUT writes no layout', async () => {
   });
 });
 
-test("a GET whose Host names the backend's own port is refused (DNS rebinding cannot read the API)", async () => {
+test("a GET whose Host names the backend's own port is refused (a direct dial, or rebinding onto that port)", async () => {
   await withPlugin(async ({ plugin }) => {
     const r = await request(plugin.port, { path: '/api/sessions', headers: { host: `evil.test:${plugin.port}` } });
     assert.equal(r.status, 403);
     assert.equal((await request(plugin.port, { path: '/api/sessions', headers: { host: CC_HOST } })).status, 200);
+  });
+});
+
+test('no API response grants cross-site read access (no Access-Control-Allow-Origin), whatever the request', async () => {
+  await withPlugin(async ({ plugin }) => {
+    await api(plugin.port, 'PUT', '/api/layouts/alpha', { tree: TREE });
+    const evil = 'http://evil.test';
+    for (const p of ['/api/projects', '/api/sessions', '/api/layouts/alpha']) {
+      for (const headers of [
+        { host: CC_HOST },
+        { host: CC_HOST, origin: CC_ORIGIN },
+        { host: CC_HOST, origin: evil },
+        { host: 'evil.test:3999', origin: 'http://evil.test:3999' },
+      ]) {
+        for (const method of ['GET', 'OPTIONS']) {
+          const r = await request(plugin.port, {
+            method, path: p,
+            headers: { ...headers, ...(method === 'OPTIONS' ? { 'access-control-request-method': 'PUT', 'access-control-request-headers': 'content-type' } : {}) },
+          });
+          for (const h of Object.keys(r.headers)) assert.ok(!h.startsWith('access-control-'), `${method} ${p} ${JSON.stringify(headers)} sent ${h}`);
+        }
+      }
+    }
   });
 });

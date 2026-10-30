@@ -5,6 +5,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+import { clampTitle, SCROLLBACK_LINES } from '../../../shared/terminal.js';
 import { createSession } from '../api';
 import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
@@ -13,8 +14,6 @@ import { activateLink, linkTip, type LinkTip } from './links';
 import { connectSession, type ConnState, type Connection } from './socket';
 import { onThemeChange, terminalTheme, TERMINAL_FONT } from './theme';
 
-// The backend mirror's SCROLLBACK_LINES (lib/session.js), so a replay fits.
-const SCROLLBACK_LINES = 5000;
 
 type Props = {
   project: string;
@@ -85,7 +84,7 @@ export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose
     };
     t.onData((d) => conn.current?.sendInput(d));
     t.onBinary((d) => conn.current?.sendInput(Uint8Array.from(d, (c) => c.charCodeAt(0))));
-    t.onTitleChange((s) => setTitle(s));
+    t.onTitleChange((s) => setTitle(clampTitle(s)));
     void fontsReady().then(() => {
       if (disposed || !host.current) return;
       t.open(host.current);
@@ -94,7 +93,7 @@ export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose
       conn.current = connectSession(sessionId, () => ({ cols: t.cols, rows: t.rows }), {
         onHello: (_state, initialTitle) => {
           t.reset();
-          setTitle(initialTitle);
+          setTitle(clampTitle(initialTitle));
         },
         onBytes: (d) => t.write(d),
         onState: setState,

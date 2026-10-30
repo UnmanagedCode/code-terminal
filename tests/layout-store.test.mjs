@@ -1,4 +1,5 @@
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
+import fsp from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -54,4 +55,24 @@ test('a project name that could traverse out of the layouts directory is refused
     await assert.rejects(store.get(name), (e) => e.status === 400, name);
   }
   assert.deepEqual(fs.readdirSync(dir), ['data'].filter((d) => fs.existsSync(path.join(dir, d))));
+});
+
+test('a write that fails after its temp file is written leaves the old layout intact and no temp file', async () => {
+  const dir = tmpDir();
+  const store = createLayoutStore(dir);
+  await store.put('alpha', pane('kept'));
+  const rename = mock.method(fsp, 'rename', async () => { throw Object.assign(new Error('injected'), { code: 'EIO' }); });
+  try {
+    await assert.rejects(store.put('alpha', pane('lost')), /injected/);
+  } finally { rename.mock.restore(); }
+  assert.deepEqual(await store.get('alpha'), pane('kept'));
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'layouts')), ['alpha.json']);
+});
+
+test('concurrent saves of one project all succeed and leave one of the saved layouts', async () => {
+  const store = createLayoutStore(tmpDir());
+  const trees = Array.from({ length: 8 }, (_, i) => pane(`p${i}`));
+  await Promise.all(trees.map((t) => store.put('alpha', t)));
+  const got = await store.get('alpha');
+  assert.ok(trees.some((t) => t.id === got.id));
 });

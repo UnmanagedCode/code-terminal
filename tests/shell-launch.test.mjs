@@ -105,3 +105,21 @@ test('a failed install refuses the open loudly with SHELL_SETUP_FAILED, and is r
     assert.ok((await launch.specFor(req)).env.HISTFILE);
   } finally { await fake.close(); }
 });
+
+test('an installer that loses the race to create the install directory leaves no temp directory behind', async () => {
+  const dataDir = tmpDir();
+  const fake = await startFakeCc();
+  try {
+    const launch = createShellLaunch({ cc: createCcClient(fake.url), dataDir });
+    const req = { project: 'alpha', worktree: null, cols: 80, rows: 24, system: 'local', remoteId: null };
+    await launch.specFor(req);
+    const shellDir = path.join(dataDir, 'shell');
+    const [hash] = fs.readdirSync(shellDir);
+    // The state a loser sees: the directory exists (the winner renamed it in) but this run found it incomplete.
+    fs.rmSync(path.join(shellDir, hash, '.complete'));
+    const again = createShellLaunch({ cc: createCcClient(fake.url), dataDir });
+    await again.specFor(req);
+    assert.deepEqual(fs.readdirSync(shellDir), [hash]);
+    assert.deepEqual(fs.readdirSync(path.join(shellDir, hash)).filter((f) => f.startsWith('.tmp')), []);
+  } finally { await fake.close(); }
+});
