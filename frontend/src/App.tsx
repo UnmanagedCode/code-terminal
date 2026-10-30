@@ -27,7 +27,18 @@ export function App() {
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const report = useCallback((e: unknown) => setNotice(e instanceof Error ? e.message : String(e)), []);
-  const refreshSessions = useCallback(() => { api.listSessions().then(setSessions, () => {}); }, []);
+  // Sessions this page killed: kept out of the list even when a listing fetched
+  // before the kill landed still carries them.
+  const killed = useRef(new Set<string>());
+  const refreshSessions = useCallback(() => {
+    api.listSessions().then((list) => setSessions(list.filter((s) => !killed.current.has(s.id))), () => {});
+  }, []);
+  // Drops a session from the list at once, then refreshes once the backend has answered the kill.
+  const kill = useCallback((sessionId: string) => {
+    killed.current.add(sessionId);
+    setSessions((list) => list.filter((s) => s.id !== sessionId));
+    api.killSession(sessionId).catch(() => {}).finally(refreshSessions);
+  }, [refreshSessions]);
 
   useEffect(() => {
     let poll: ReturnType<typeof setInterval> | undefined;
@@ -117,18 +128,17 @@ export function App() {
   }, [mutate, refreshSessions, report]);
 
   const closePane = useCallback((project: string, pane: Pane) => {
-    if (pane.sessionId) api.killSession(pane.sessionId).catch(() => {});
+    if (pane.sessionId) kill(pane.sessionId);
     const tree = layoutsRef.current[project];
     if (tree) setFocused(focusAfterClose(tree, pane.id));
     mutate(project, (t) => (t ? close(t, pane.id) : null));
-    refreshSessions();
-  }, [mutate, refreshSessions]);
+  }, [mutate, kill]);
 
   const replaceSession = useCallback((project: string, pane: Pane, sessionId: string) => {
-    if (pane.sessionId) api.killSession(pane.sessionId).catch(() => {});
+    if (pane.sessionId) kill(pane.sessionId);
     mutate(project, (t) => (t ? updatePane(t, pane.id, { sessionId }) : t));
     refreshSessions();
-  }, [mutate, refreshSessions]);
+  }, [mutate, kill, refreshSessions]);
 
   const focusSession = useCallback(async (project: string, sessionId: string) => {
     try {
@@ -139,9 +149,11 @@ export function App() {
         setFocused(found.id);
         return;
       }
-      // A live session no pane shows (its layout was lost): give it a pane.
+      // A live session no pane shows (its layout was lost): give it a pane. One
+      // that is gone from the list (killed meanwhile) gets none.
       const s = sessions.find((x) => x.id === sessionId);
-      await place(project, newPane(sessionId, s?.worktree ?? null));
+      if (!s || killed.current.has(sessionId)) return;
+      await place(project, newPane(sessionId, s.worktree));
     } catch (e) { report(e); }
   }, [ensureLayout, place, report, select, sessions]);
 

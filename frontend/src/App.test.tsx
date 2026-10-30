@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Pane } from './layout/tree';
 
 // The pane's own behaviour is TerminalPane.test.tsx's; here it only needs a Close.
@@ -10,7 +10,12 @@ vi.mock('./terminal/TerminalPane', () => ({
 }));
 const { App } = await import('./App');
 
-afterEach(() => { vi.unstubAllGlobals(); history.replaceState(null, '', '/'); });
+// Unmount while the test's fetch stub is still in place: the App flushes pending saves on unmount.
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  history.replaceState(null, '', '/');
+});
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -35,13 +40,16 @@ const S2 = '1c8d2a6f-4d2b-4d2f-8e3b-2a3f4e5d6c7b';
 const p1: Pane = { kind: 'pane', id: 'p1', sessionId: S1, worktree: null };
 const p2: Pane = { kind: 'pane', id: 'p2', sessionId: S2, worktree: null };
 
-function hostWithTwoPanes() {
+const info = (id: string, ordinal: number) => ({ id, ordinal, project: 'alpha', worktree: null, state: { kind: 'running' }, title: '' });
+
+// `listed`: what the backend's session list answers, which may lag a kill.
+function hostWithTwoPanes(listed: unknown[] = []) {
   const calls: { url: string; init: RequestInit }[] = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init });
     if (url === 'api/projects') return json(200, { projects: [{ name: 'alpha', path: '/p/alpha', system: 'local', remoteId: null, worktrees: [], terminal: { state: 'available' } }] });
     if (url === 'api/layouts/alpha' && (init.method ?? 'GET') === 'GET') return json(200, { tree: { kind: 'split', dir: 'row', ratio: 0.5, a: p1, b: p2 } });
-    if (url === 'api/sessions') return json(200, { sessions: [] });
+    if (url === 'api/sessions') return json(200, { sessions: listed });
     return new Response(null, { status: 204 });
   }));
   history.replaceState(null, '', '?project=alpha');
@@ -79,4 +87,19 @@ test("closing a pane kills its session with a request that survives unload", asy
   expect(kill?.url).toBe(`api/sessions/${S2}`);
   expect(kill?.init.keepalive).toBe(true);
   expect((kill?.init.headers as Record<string, string>)['content-type']).toBe('application/json');
+});
+
+test('a closed shell leaves the sidebar at once and stays gone even while the session list still reports it', async () => {
+  // The backend's listing still carries S2, as one fetched before the kill landed would.
+  const calls = hostWithTwoPanes([info(S1, 1), info(S2, 2)]);
+  render(<App />);
+  expect(await screen.findByRole('button', { name: /^shell 2 / })).toBeTruthy();
+  const listingsBefore = calls.filter((c) => c.url === 'api/sessions').length;
+  fireEvent.click(screen.getByRole('button', { name: 'Close p2' }));
+  expect(screen.queryByRole('button', { name: /^shell 2 / })).toBeNull();
+  // The refresh after the kill answers with the stale list; S2 must not come back.
+  await waitFor(() => expect(calls.filter((c) => c.url === 'api/sessions').length).toBeGreaterThan(listingsBefore));
+  await waitFor(() => expect(screen.getByRole('button', { name: /^shell 1 / })).toBeTruthy());
+  expect(screen.queryByRole('button', { name: /^shell 2 / })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'pane p2' })).toBeNull();
 });

@@ -19,7 +19,7 @@ Details: [docs/features.md](docs/features.md).
 - **Manifest:** `conductor.plugin.json` (`id` `code-terminal`, `pluginApi` 1, health path `/api/health`).
 - **Terminals:** the backend opens each one through cc's `GET /api/terminal` WebSocket and keeps a headless mirror of it for reattach; installs its shell integration through cc's `POST /api/exec`.
 - **Serving:** `server.js` listens on `127.0.0.1:$PORT` (default 4000), serves an allowlist of files from `frontend/dist`, and sends a CSP and `nosniff` on every response.
-- **Security:** every upgrade and API request passes an Origin/Host guard that refuses cross-site requests and any request naming the backend's own port (a direct dial, or DNS rebinding onto that port); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md#request-guard).
+- **Security:** every upgrade and API request passes an Origin/Host guard that refuses cross-site reads and mutations and any request naming the backend's own port (a direct dial, or DNS rebinding onto that port); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md#request-guard).
 - **Data:** `$PROJECTS_ROOT/.code-terminal/` (layouts, history, shell integration); on other Systems `$HOME/.local/state/code-terminal/`.
 - **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; route state in `?project=`; width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
 
