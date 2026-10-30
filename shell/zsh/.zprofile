@@ -1,0 +1,5 @@
+# code-terminal: see .zshenv.
+ZDOTDIR=$CODE_TERMINAL_USER_ZDOTDIR
+[[ -r $ZDOTDIR/.zprofile ]] && source $ZDOTDIR/.zprofile
+CODE_TERMINAL_USER_ZDOTDIR=$ZDOTDIR
+ZDOTDIR=$CODE_TERMINAL_ZDOTDIR

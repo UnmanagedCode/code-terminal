@@ -1,0 +1,14 @@
+# code-terminal: bash runs as `bash --init-file <this> -i`. It loads the files a
+# login bash would, then pins history to the project's file, after the user's
+# files so they cannot take it back. Bash reads the history file after this.
+if [ -r /etc/profile ]; then . /etc/profile; fi
+for __code_terminal_f in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+  if [ -r "$__code_terminal_f" ]; then . "$__code_terminal_f"; break; fi
+done
+unset __code_terminal_f
+HISTFILE=$CODE_TERMINAL_HISTFILE
+export HISTFILE
+shopt -s histappend
+# Append this shell's new lines and re-read the file at every prompt, so shells
+# of one project share history live. A PROMPT_COMMAND array keeps its other elements.
+PROMPT_COMMAND="history -a; history -c; history -r${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
