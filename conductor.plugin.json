@@ -9,6 +9,6 @@
   },
   "frontend": {
     "path": "/",
-    "navLabel": "Terminal"
+    "navLabel": "Code Terminal"
   }
 }
