@@ -1,0 +1,20 @@
+{
+  "isolation": "in-place",
+  "baseBranch": "main",
+  "routes": [
+    {
+      "name": "backend",
+      "runner": "node-test",
+      "tests": ["tests/**/*.test.mjs"],
+      "baselineCommand": "node --test \"tests/**/*.test.mjs\"",
+      "testCommand": "node --test {tests}"
+    },
+    {
+      "name": "frontend",
+      "runner": "vitest",
+      "tests": ["frontend/src/**/*.test.ts", "frontend/src/**/*.test.tsx"],
+      "baselineCommand": "npx vitest run --config frontend/vitest.config.ts --reporter=json --outputFile=\"$CODE_MUTANT_REPORT_DIR/vitest.json\"",
+      "testCommand": "npx vitest run --config frontend/vitest.config.ts --reporter=json --outputFile=\"$CODE_MUTANT_REPORT_DIR/vitest.json\" {tests}"
+    }
+  ]
+}
