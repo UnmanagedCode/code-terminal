@@ -4,5 +4,5 @@ import { App } from './App';
 
 test('renders the placeholder page', () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: 'Code Shell' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Code Terminal' })).toBeTruthy();
 });

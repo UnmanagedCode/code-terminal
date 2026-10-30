@@ -13,7 +13,7 @@ async function withServer(distDir, fn) {
 }
 
 function tmpDist(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'code-shell-dist-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'code-terminal-dist-'));
   for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), body);
   return dir;
 }
@@ -40,7 +40,7 @@ test('serves the built index and 404s host URLs standalone', async () => {
 });
 
 test('unbuilt UI: HTML entry answers 503, health stays up', async () => {
-  const dist = path.join(os.tmpdir(), 'code-shell-missing-dist');
+  const dist = path.join(os.tmpdir(), 'code-terminal-missing-dist');
   await withServer(dist, async (base) => {
     assert.equal((await fetch(`${base}/`)).status, 503);
     assert.equal((await fetch(`${base}/api/health`)).status, 200);

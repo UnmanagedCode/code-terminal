@@ -1,4 +1,4 @@
-# Code Shell
+# Code Terminal
 
 A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin that gives in-browser terminals grouped by project.
 
@@ -8,12 +8,12 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin 
 - Per-project shell history.
 - Sessions held by the plugin backend, so a browser reload reattaches to running shells.
 
-**Current state: skeleton.** The plugin installs, starts, answers its health route and shows a placeholder page ("Shell" nav entry). No terminal features exist yet.
+**Current state: skeleton.** The plugin installs, starts, answers its health route and shows a placeholder page ("Terminal" nav entry). No terminal features exist yet.
 
 ## Technical overview
 
 - **Stack:** Node (ESM, `>=22.12`) + Express backend; Vite + React + TypeScript frontend.
-- **Manifest:** `conductor.plugin.json` (`id` `code-shell`, `pluginApi` 1, health path `/api/health`).
+- **Manifest:** `conductor.plugin.json` (`id` `code-terminal`, `pluginApi` 1, health path `/api/health`).
 - **Serving:** `server.js` listens on `127.0.0.1:$PORT` (default 4000), serves an allowlist of files from `frontend/dist`, and sets a strict CSP. Unbuilt UI → `/` answers 503, health stays up.
 - **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; content width uses `var(--cc-session-width, 48rem)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
 

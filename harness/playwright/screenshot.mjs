@@ -15,7 +15,7 @@ const srv = await bootServer({ cwd: repo, entry: 'server.js' });
 try {
   await withPage(async (page) => {
     await page.goto(srv.url);
-    await page.getByRole('heading', { name: 'Code Shell' }).waitFor();
+    await page.getByRole('heading', { name: 'Code Terminal' }).waitFor();
     await page.screenshot({ path: out });
   }, { viewport: { width: 1024, height: 640 } });
   console.log(`screenshot: ${out}`);

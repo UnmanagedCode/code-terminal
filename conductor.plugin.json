@@ -1,6 +1,6 @@
 {
-  "id": "code-shell",
-  "name": "Code Shell",
+  "id": "code-terminal",
+  "name": "Code Terminal",
   "version": "0.1.0",
   "pluginApi": 1,
   "backend": {
@@ -9,6 +9,6 @@
   },
   "frontend": {
     "path": "/",
-    "navLabel": "Shell"
+    "navLabel": "Terminal"
   }
 }
