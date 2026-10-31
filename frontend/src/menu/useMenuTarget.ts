@@ -6,8 +6,9 @@ import { readMenuTarget, resolveMenuTarget, type MenuTarget } from './target';
 
 type Options = {
   active(): Checkout | null;
-  // A fresh project listing; also updates the page's own copy.
   refresh(): Promise<ProjectInfo[]>;
+  // Takes the listing as the page's own copy; called only for a target that is still the latest.
+  commit(projects: ProjectInfo[]): void;
   open(c: Checkout, projects: ProjectInfo[]): void;
   report(message: string): void;
 };
@@ -29,6 +30,7 @@ export function useMenuTarget(o: Options): void {
       const seq = ++latest;
       opts.current.refresh().then((list) => {
         if (!live || seq !== latest) return;
+        opts.current.commit(list);
         const r = resolveMenuTarget(list, t);
         if (r.ok) opts.current.open(r.checkout, list);
         else opts.current.report(r.message);

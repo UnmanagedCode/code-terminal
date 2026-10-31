@@ -487,3 +487,77 @@ test('menu: a failing listing alerts and leaves the tabs alone', async () => {
   expect((await screen.findByRole('alert')).textContent).toMatch(/unreachable/);
   expect(screen.getAllByRole('tab').length).toBe(1);
 });
+
+// Invariant: a superseded target's listing never becomes the page's copy: a live tab of the newer target is not marked gone.
+test('menu: an older target\'s differing listing resolving last does not overwrite the newer one', async () => {
+  const gates: Array<() => void> = [];
+  let n = 0;
+  host({
+    projects: () => {
+      const i = n++;
+      if (i === 0) return [project('alpha', ['feat'])];
+      return new Promise((r) => { gates[i] = () => r([project('alpha', i === 1 ? ['feat'] : ['feat', 'new'])]); });
+    },
+    layouts: { 'api/layouts/alpha': p1, 'api/layouts/alpha?worktree=new': p2 },
+  });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  navigate('?ccProject=alpha&ccWorktree=ghost');
+  navigate('?ccProject=alpha&ccWorktree=new');
+  await act(async () => { gates[2](); });
+  await screen.findByRole('region', { name: 'pane p2' });
+  await act(async () => { gates[1](); });
+  expect(selected('alpha/new')).toBe(true);
+  expect(screen.queryByText(/no longer exists in code-conductor/)).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+// Invariant: cc's params are swapped for the tab route even when nothing opens (unknown name, failed listing).
+test.each([
+  ['an unknown name', () => 200, '?ccProject=ghost'],
+  ['a failed listing', (n: number) => (n === 0 ? 200 : 500), '?ccProject=alpha&ccWorktree=feat'],
+])('menu: after %s, a cc navigate leaves the tab route in the URL and adds no history entry', async (_n, status, search) => {
+  let n = 0;
+  host({ projectsStatus: () => status(n++), layouts: { 'api/layouts/alpha': p1 } });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  const length = history.length;
+  navigate(search);
+  await screen.findByRole('alert');
+  expect(location.search).toBe('?project=alpha');
+  expect(history.length).toBe(length);
+});
+
+// Invariant: consuming a menu target swaps the cc params in place; only the tab change itself adds one entry.
+test('menu: a valid cc navigate adds exactly one history entry (the new tab), none for the cc params', async () => {
+  host({ layouts: { 'api/layouts/alpha': p1, 'api/layouts/alpha?worktree=feat': p2 } });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  const length = history.length;
+  navigate('?ccProject=alpha&ccWorktree=feat');
+  await screen.findByRole('region', { name: 'pane p2' });
+  expect(location.search).toBe('?project=alpha&worktree=feat');
+  expect(history.length).toBe(length + 1);
+});
+
+// Invariant: whether a menu pick opens a shell follows the fresh listing's availability, not the page's older copy.
+test.each([
+  ['became unavailable', 'available', 'unavailable', 0],
+  ['became available', 'unavailable', 'available', 1],
+])('menu: an empty checkout whose System %s since the page listed it is judged by the fresh listing', async (_n, before, after, shells) => {
+  const t = (s: string) => (s === 'available' ? { state: 'available' } : { state: 'unavailable', code: 'X', reason: 'no terminals' });
+  let n = 0;
+  const calls = host({ projects: () => [project('alpha', ['feat'], t(n++ === 0 ? before : after))] });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('button', { name: 'New shell' });
+  navigate('?ccProject=alpha&ccWorktree=feat');
+  await waitFor(() => expect(selected('alpha/feat')).toBe(true));
+  await waitFor(() => expect(calls.filter((c) => c.url === 'api/layouts/alpha?worktree=feat').length).toBe(1));
+  await waitFor(() => expect(posts(calls).length).toBe(shells));
+  await act(async () => {});
+  expect(posts(calls).length).toBe(shells);
+});

@@ -181,15 +181,14 @@ export function App() {
     } catch (e) { report(e); }
   }, [dispatch, ensureLayout, projects, isOpen, newShell, report]);
 
-  const refreshProjects = useCallback(async () => {
-    const list = await api.listProjects();
+  const commitProjects = useCallback((list: ProjectInfo[]) => {
     setProjects(list);
     setProjectsError(null);
-    return list;
   }, []);
   useMenuTarget({
     active: () => tabsRef.current.open[tabsRef.current.active] ?? null,
-    refresh: refreshProjects,
+    refresh: api.listProjects,
+    commit: commitProjects,
     open: (c, list) => void pick(c, list),
     report: (m) => setNotice(m),
   });

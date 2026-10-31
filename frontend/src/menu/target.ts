@@ -17,7 +17,7 @@ export function readMenuTarget(search = location.search): MenuTarget | null {
 
 export type Resolved = { ok: true; checkout: Checkout } | { ok: false; message: string };
 
-// The project name in the checkout is the listing's own string; the worktree matched one exactly.
+// The checkout is built from the listing's own strings, never from the request's.
 export function resolveMenuTarget(projects: ProjectInfo[], t: MenuTarget): Resolved {
   if (t.project === null) return { ok: false, message: "Can't open a terminal: code-conductor named no project." };
   const presence = checkoutPresence(projects, { project: t.project, worktree: t.worktree });
@@ -27,5 +27,6 @@ export function resolveMenuTarget(projects: ProjectInfo[], t: MenuTarget): Resol
   if (presence.kind === 'worktree-gone') {
     return { ok: false, message: `Can't open a terminal: project “${t.project}” has no worktree “${t.worktree}”.` };
   }
-  return { ok: true, checkout: { project: presence.project.name, worktree: t.worktree } };
+  const worktree = t.worktree === null ? null : presence.project.worktrees.find((w) => w.name === t.worktree)!.name;
+  return { ok: true, checkout: { project: presence.project.name, worktree } };
 }
