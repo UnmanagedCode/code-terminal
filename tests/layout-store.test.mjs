@@ -8,7 +8,9 @@ import { validateLayout, LAYOUT_MAX_BYTES } from '../shared/layout.js';
 import { tmpDir } from './helpers.mjs';
 
 const fixtures = JSON.parse(fs.readFileSync(new URL('./fixtures/layouts.json', import.meta.url), 'utf8'));
-const pane = (id) => ({ kind: 'pane', id, sessionId: null, worktree: null });
+const pane = (id) => ({ kind: 'pane', id, sessionId: null });
+const main = (project) => ({ project, worktree: null });
+const wt = (project, worktree) => ({ project, worktree });
 
 function deepTree(depth) {
   let t = pane('leaf');
@@ -25,34 +27,55 @@ test('a tree nested 10,000 deep validates without a stack overflow', () => {
   assert.equal(validateLayout(deepTree(10_000)), null);
 });
 
-test('a layout round-trips per project, and projects do not share one', async () => {
+// Invariant: layouts are keyed by checkout, never shared.
+test('the main and worktree layouts of one project round-trip independently, and one worktree name in two projects is two layouts', async () => {
+  const dir = tmpDir();
+  const store = createLayoutStore(dir);
+  await store.put(main('alpha'), pane('main-a'));
+  await store.put(wt('alpha', 'feat'), pane('feat-a'));
+  await store.put(wt('beta', 'feat'), pane('feat-b'));
+  assert.deepEqual(await store.get(main('alpha')), pane('main-a'));
+  assert.deepEqual(await store.get(wt('alpha', 'feat')), pane('feat-a'));
+  assert.deepEqual(await store.get(wt('beta', 'feat')), pane('feat-b'));
+  assert.equal(await store.get(main('beta')), null);
+  assert.equal(await store.get(wt('alpha', 'other')), null);
+  assert.ok(fs.existsSync(path.join(dir, 'layouts', 'alpha', 'main.json')));
+  assert.ok(fs.existsSync(path.join(dir, 'layouts', 'alpha', 'worktrees', 'feat.json')));
+});
+
+// Invariant: closing a tab drops exactly that checkout's layout.
+test('remove deletes one checkout layout only, and removing an absent one is fine', async () => {
   const store = createLayoutStore(tmpDir());
-  const a = fixtures.valid[3];
-  await store.put('alpha', a);
-  await store.put('beta', pane('only-beta'));
-  assert.deepEqual(await store.get('alpha'), a);
-  assert.deepEqual(await store.get('beta'), pane('only-beta'));
-  assert.equal(await store.get('gamma'), null);
+  await store.put(main('alpha'), pane('m'));
+  await store.put(wt('alpha', 'feat'), pane('f'));
+  await store.remove(wt('alpha', 'feat'));
+  assert.equal(await store.get(wt('alpha', 'feat')), null);
+  assert.deepEqual(await store.get(main('alpha')), pane('m'));
+  await store.remove(wt('alpha', 'never'));
 });
 
 test('an invalid or oversize tree is refused and the stored layout survives', async () => {
   const dir = tmpDir();
   const store = createLayoutStore(dir);
-  await store.put('alpha', pane('kept'));
-  await assert.rejects(store.put('alpha', fixtures.invalid[3]), (e) => e.status === 400);
+  await store.put(main('alpha'), pane('kept'));
+  await assert.rejects(store.put(main('alpha'), fixtures.invalid[3]), (e) => e.status === 400);
   const big = deepTree(Math.ceil(LAYOUT_MAX_BYTES / 60));
   assert.ok(JSON.stringify(big).length > LAYOUT_MAX_BYTES);
-  await assert.rejects(store.put('alpha', big), (e) => e.status === 413);
-  assert.deepEqual(await store.get('alpha'), pane('kept'));
-  assert.deepEqual(fs.readdirSync(path.join(dir, 'layouts')), ['alpha.json'], 'no temp file is left behind');
+  await assert.rejects(store.put(main('alpha'), big), (e) => e.status === 413);
+  assert.deepEqual(await store.get(main('alpha')), pane('kept'));
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'layouts', 'alpha')), ['main.json'], 'no temp file is left behind');
 });
 
-test('a project name that could traverse out of the layouts directory is refused', async () => {
+// Invariant: no path traversal through the project or worktree segment.
+test('a project or worktree name that could traverse out of the layouts directory is refused', async () => {
   const dir = tmpDir();
   const store = createLayoutStore(path.join(dir, 'data'));
   for (const name of ['..', '.', '../escape', 'a/b', '']) {
-    await assert.rejects(store.put(name, pane('x')), (e) => e.status === 400, name);
-    await assert.rejects(store.get(name), (e) => e.status === 400, name);
+    for (const c of [main(name), wt('alpha', name)]) {
+      await assert.rejects(store.put(c, pane('x')), (e) => e.status === 400, JSON.stringify(c));
+      await assert.rejects(store.get(c), (e) => e.status === 400, JSON.stringify(c));
+      await assert.rejects(store.remove(c), (e) => e.status === 400, JSON.stringify(c));
+    }
   }
   assert.deepEqual(fs.readdirSync(dir), ['data'].filter((d) => fs.existsSync(path.join(dir, d))));
 });
@@ -60,19 +83,19 @@ test('a project name that could traverse out of the layouts directory is refused
 test('a write that fails after its temp file is written leaves the old layout intact and no temp file', async () => {
   const dir = tmpDir();
   const store = createLayoutStore(dir);
-  await store.put('alpha', pane('kept'));
+  await store.put(main('alpha'), pane('kept'));
   const rename = mock.method(fsp, 'rename', async () => { throw Object.assign(new Error('injected'), { code: 'EIO' }); });
   try {
-    await assert.rejects(store.put('alpha', pane('lost')), /injected/);
+    await assert.rejects(store.put(main('alpha'), pane('lost')), /injected/);
   } finally { rename.mock.restore(); }
-  assert.deepEqual(await store.get('alpha'), pane('kept'));
-  assert.deepEqual(fs.readdirSync(path.join(dir, 'layouts')), ['alpha.json']);
+  assert.deepEqual(await store.get(main('alpha')), pane('kept'));
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'layouts', 'alpha')), ['main.json']);
 });
 
-test('concurrent saves of one project all succeed and leave one of the saved layouts', async () => {
+test('concurrent saves of one checkout all succeed and leave one of the saved layouts', async () => {
   const store = createLayoutStore(tmpDir());
   const trees = Array.from({ length: 8 }, (_, i) => pane(`p${i}`));
-  await Promise.all(trees.map((t) => store.put('alpha', t)));
-  const got = await store.get('alpha');
+  await Promise.all(trees.map((t) => store.put(main('alpha'), t)));
+  const got = await store.get(main('alpha'));
   assert.ok(trees.some((t) => t.id === got.id));
 });

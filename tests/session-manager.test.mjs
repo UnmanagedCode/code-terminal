@@ -23,3 +23,29 @@ test('shells are numbered per project in creation order, and a number is never r
     await fake.close();
   }
 });
+
+// Invariant: kill-on-close is per checkout.
+test('killCheckout kills the sessions of that exact checkout only, and counts them', async () => {
+  const { createSessionManager } = await import('../lib/sessionManager.js');
+  const { quietLog } = await import('./helpers.mjs');
+  const fake = await startFakeCc({ projects: [projectRow('alpha'), projectRow('beta')] });
+  const manager = createSessionManager({
+    cc: (await import('../lib/ccClient.js')).createCcClient(fake.url),
+    shellLaunch: fixedSpec,
+    probe: { noteRefusal() {}, noteSuccess() {} },
+    log: quietLog,
+  });
+  const open = (project, worktree) => manager.create({ project, worktree, cols: 80, rows: 24 });
+  try {
+    const mainA = await open('alpha', null);
+    const featA = await open('alpha', 'feat');
+    const mainB = await open('beta', null);
+    assert.equal(manager.killCheckout('alpha', null), 1);
+    assert.deepEqual(manager.list().map((s) => s.id).sort(), [featA.id, mainB.id].sort());
+    assert.equal(manager.killCheckout('alpha', null), 0);
+    assert.equal(mainA.info.project, 'alpha');
+  } finally {
+    manager.closeAll();
+    await fake.close();
+  }
+});

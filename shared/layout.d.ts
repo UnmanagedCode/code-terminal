@@ -1,4 +1,4 @@
-export type Pane = { kind: 'pane'; id: string; sessionId: string | null; worktree: string | null };
+export type Pane = { kind: 'pane'; id: string; sessionId: string | null };
 export type Split = { kind: 'split'; dir: 'row' | 'col'; ratio: number; a: Layout; b: Layout };
 export type Layout = Pane | Split;
 

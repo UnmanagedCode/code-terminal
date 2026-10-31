@@ -6,7 +6,7 @@ import { startFakeCc, projectRow } from './fakeCc.mjs';
 import { CC_HOST, CC_ORIGIN, api, request, startPlugin } from './helpers.mjs';
 
 const fixedSpec = { specFor: async () => ({ project: 'alpha', worktree: null, cols: 80, rows: 24 }) };
-const TREE = { kind: 'pane', id: 'p1', sessionId: null, worktree: null };
+const TREE = { kind: 'pane', id: 'p1', sessionId: null };
 
 async function withPlugin(fn) {
   const fake = await startFakeCc({ projects: [projectRow('alpha')] });
@@ -60,8 +60,23 @@ test('a cross-site or non-JSON PUT writes no layout', async () => {
       const r = await request(plugin.port, { method: 'PUT', path: '/api/layouts/alpha', headers: v.headers, body: JSON.stringify({ tree: TREE }) });
       assert.equal(r.status, v.status ?? 403, v.why);
     }
-    assert.equal(fs.existsSync(path.join(plugin.dataDir, 'layouts', 'alpha.json')), false);
+    assert.equal(fs.existsSync(path.join(plugin.dataDir, 'layouts', 'alpha', 'main.json')), false);
     assert.equal((await api(plugin.port, 'PUT', '/api/layouts/alpha', { tree: TREE })).status, 204);
+  });
+});
+
+// Invariant: the checkout-close route is under the request guard.
+test('a cross-site or non-JSON DELETE of a checkout kills nothing and removes no layout', async () => {
+  await withPlugin(async ({ fake, plugin }) => {
+    await api(plugin.port, 'POST', '/api/sessions', { project: 'alpha', worktree: null, cols: 80, rows: 24 });
+    await api(plugin.port, 'PUT', '/api/layouts/alpha', { tree: TREE });
+    for (const v of hostileVariants(plugin.port)) {
+      const r = await request(plugin.port, { method: 'DELETE', path: '/api/checkouts/alpha', headers: v.headers });
+      assert.equal(r.status, v.status ?? 403, v.why);
+    }
+    assert.equal(fake.terminals[0].closed, null);
+    assert.equal((await api(plugin.port, 'GET', '/api/sessions')).json.sessions.length, 1);
+    assert.deepEqual((await api(plugin.port, 'GET', '/api/layouts/alpha')).json.tree, TREE);
   });
 });
 
