@@ -149,16 +149,32 @@ describe('menu placement', () => {
   });
 });
 
-// Invariant: a menu that no longer sits under its opener closes, without taking focus.
-test('the menu closes on window resize and on a scroll of the tab strip, leaving focus where it is', () => {
+// Invariant: a menu that no longer sits under its opener closes, and focus is never returned to ⋮.
+// The refocus path defers its focus call to a microtask, so the assertions run after microtasks settle.
+test('the menu closes on window resize and on a scroll of the tab strip, leaving focus where it is', async () => {
+  setup();
+  const more = screen.getByRole('button', { name: 'Actions for alpha' });
+  const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  for (const drift of [
+    () => window.dispatchEvent(new Event('resize')),
+    () => screen.getByRole('tablist').dispatchEvent(new Event('scroll')),
+  ]) {
+    fireEvent.click(more);
+    // Focus starts on a menu item, somewhere other than ⋮.
+    expect(document.activeElement?.getAttribute('role')).toBe('menuitem');
+    act(drift);
+    await settle();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).not.toBe(more);
+  }
+});
+
+// Invariant: closing by Escape does return focus to ⋮ (the contrast case of the drift close).
+test('Escape closes the menu and returns focus to ⋮', async () => {
   setup();
   const more = screen.getByRole('button', { name: 'Actions for alpha' });
   fireEvent.click(more);
-  act(() => { window.dispatchEvent(new Event('resize')); });
-  expect(screen.queryByRole('menu')).toBeNull();
-  expect(document.activeElement).not.toBe(more);
-  fireEvent.click(more);
-  fireEvent.scroll(screen.getByRole('tablist'));
-  expect(screen.queryByRole('menu')).toBeNull();
-  expect(document.activeElement).not.toBe(more);
+  fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' });
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(document.activeElement).toBe(more);
 });
