@@ -31,14 +31,17 @@ All under the plugin root (`/plugins/code-terminal/` inside cc). Bodies are JSON
 | Method + path | Body | Success | Refusals |
 |---|---|---|---|
 | `GET /api/health` | — | `200 {ok: true}` | — |
-| `GET /api/projects` | — | `200 {projects: [{name, path, system, remoteId, worktrees: [{name, path, branch}], terminal}]}` | cc's refusal passed through |
+| `GET /api/projects` | — | `200 {projects: [{name, path, system, remoteId, workspace, worktrees: [{name, path, branch}], terminal}]}` | cc's refusal passed through |
 | `GET /api/sessions` | — | `200 {sessions: [{id, ordinal, project, worktree, state, title}]}` | — |
 | `POST /api/sessions` | `{project, worktree, cols, rows}` | `201 {id}` | `400 INVALID_ARGUMENT`; `SHELL_SETUP_FAILED`; cc's terminal refusals with cc's status, code and error |
 | `DELETE /api/sessions/:id` | — | `204` | `404 SESSION_UNKNOWN` |
-| `GET /api/layouts/:project` | — | `200 {tree}` (`null` = none saved) | `400 INVALID_ARGUMENT` (unusable name) |
-| `PUT /api/layouts/:project` | `{tree}` | `204` | `400 INVALID_ARGUMENT`, `400 INVALID_LAYOUT`, `413 LAYOUT_TOO_LARGE` |
+| `GET /api/layouts/:project[?worktree=<name>]` | — | `200 {tree}` (`null` = none saved) | `400 INVALID_ARGUMENT` (unusable name) |
+| `PUT /api/layouts/:project[?worktree=<name>]` | `{tree}` | `204` | `400 INVALID_ARGUMENT`, `400 INVALID_LAYOUT`, `413 LAYOUT_TOO_LARGE` |
+| `DELETE /api/checkouts/:project[?worktree=<name>]` | — | `204` | `400 INVALID_ARGUMENT` |
 
-- `projects` lists cc's `GET /api/projects` rows minus `degraded` ones; `worktrees[].name` is cc's `worktreeName`.
+- `projects` lists cc's `GET /api/projects` rows minus `degraded` ones; `worktrees[].name` is cc's `worktreeName`; `workspace` is the row's workspace name or `null`.
+- A **checkout** is `:project` plus an optional `?worktree=`; absent means the main checkout. Both names must pass `validProjectName`; an empty or repeated `worktree` is `400 INVALID_ARGUMENT`.
+- `DELETE /api/checkouts/...` kills every session of exactly that checkout (`manager.killCheckout`) and removes its layout; it succeeds when there is nothing to kill.
 - `terminal` is the pty probe's verdict for the row's `(system, remoteId)` ([architecture](architecture.md#pty-probe)):
 
 | `state` | Fields | Meaning |
@@ -67,10 +70,15 @@ All under the plugin root (`/plugins/code-terminal/` inside cc). Bodies are JSON
 
 | Node | Keys (exactly) | Rules |
 |---|---|---|
-| pane | `kind: 'pane'`, `id`, `sessionId`, `worktree` | `id` 1–64 of `[A-Za-z0-9_-]`, unique in the tree; `sessionId` a UUID or `null`; `worktree` a non-empty name or `null` |
+| pane | `kind: 'pane'`, `id`, `sessionId` | `id` 1–64 of `[A-Za-z0-9_-]`, unique in the tree; `sessionId` a UUID or `null` |
 | split | `kind: 'split'`, `dir`, `ratio`, `a`, `b` | `dir` `row` (side by side) or `col` (stacked); `ratio` in `RATIO_MIN..RATIO_MAX`; `a`, `b` nodes |
 
+- A layout belongs to one checkout; the checkout (tab) decides where a pane's shell runs.
 - The serialized tree is capped at `LAYOUT_MAX_BYTES`; validation is iterative, so depth is bounded only by that cap.
+
+## UI route
+
+The page's query string names the active tab: `?project=<name>` is that project's main checkout, `?project=<name>&worktree=<name>` one of its worktrees. No `project` means no active tab.
 
 ## Session I/O — `GET /api/sessions/:id/io?cols=N&rows=N` (WebSocket)
 

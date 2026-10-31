@@ -24,8 +24,8 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 | `ptyProbe.js` | per-`(system, remoteId)` terminal availability |
 | `shellLaunch.js` + `shell/` | integration install per System; `buildSpec` |
 | `session.js` | one terminal: upstream socket, headless mirror, one client, state, backpressure |
-| `sessionManager.js` | the registry: create (location → spec → open), get, list, kill, closeAll |
-| `layoutStore.js` | per-project layout files, atomic writes (a uniquely named temp file renamed over the old one) |
+| `sessionManager.js` | the registry: create (location → spec → open), get, list, kill, killCheckout, closeAll |
+| `layoutStore.js` | per-checkout layout files (get, put, remove), atomic writes (a uniquely named temp file renamed over the old one) |
 | `api.js` | the REST router |
 | `wsGateway.js` | the `io` upgrade: guard → lookup → attach |
 
@@ -67,7 +67,8 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 
 ```
 $PROJECTS_ROOT/.code-terminal/          (mode 0700 dirs, 0600 files)
-├── layouts/<project>.json              one layout tree per project
+├── layouts/<project>/main.json         the main checkout's layout tree
+│   └── worktrees/<worktree>.json       one per worktree
 ├── shell/<hash>/                       installed integration (local System)
 │   ├── bashrc
 │   └── zsh/.zshenv .zprofile .zshrc .zlogin
@@ -75,16 +76,24 @@ $PROJECTS_ROOT/.code-terminal/          (mode 0700 dirs, 0600 files)
 $HOME/.local/state/code-terminal/       same shell/ and history/ on any other System
 ```
 
-- Project names become path segments only after `validProjectName` (`lib/shellLaunch.js`): cc's name rule, never `.` or `..`.
+- Project and worktree names become path segments only after `validProjectName` (`lib/shellLaunch.js`): cc's name rule, never `.` or `..`.
 - Sessions are memory only.
 
 ## Frontend (`frontend/src/`)
 
 | Module | Responsibility |
 |---|---|
-| `App.tsx` | route (`?project=`), projects, session list poll, per-project layouts (debounced save, flushed on `pagehide` and unmount), pane actions |
+| `App.tsx` | wiring: projects, tabs, pane and close-tab actions, picker and confirm state, notice |
+| `checkout.ts` | `Checkout`, key and label, presence in cc's listing, availability note, running count |
+| `route.ts`, `storage.ts` | `?project=&worktree=` read/write; `localStorage` under the `code-terminal:` prefix |
+| `tabs/tabs.ts`, `useTabs.ts` | the tab reducer and its persistence; restore from storage, then the URL; route sync and popstate |
+| `tabs/TabBar.tsx`, `TabMenu.tsx` | the tab strip and its `role="menu"` popup |
+| `tabs/useTabShortcuts.ts` | Ctrl/⌘+digit on `window` in the capture phase, swallowing the key: xterm turns Ctrl+2…8 into control bytes and stops the event, so a bubbling listener never sees it inside a terminal |
+| `picker/CheckoutPicker.tsx` | grouping, filter, availability, live counts |
+| `dialog/Modal.tsx`, `ConfirmDialog.tsx` | native `<dialog>` wrapper; the destructive confirm |
+| `layout/useLayouts.ts` | layouts keyed by checkout: debounced save, flushed on `pagehide` and unmount; `hold`/`release`/`drop` around a close; a change for a checkout without a tab is ignored |
+| `sessions/useSessions.ts` | the session poll and the set of sessions this page killed |
 | `api.ts` | REST calls; relative URLs; JSON content type on every mutation; layout saves and kills use `keepalive` so they outlive an unload |
-| `sidebar/Sidebar.tsx`, `WorktreePicker.tsx` | project rows, availability notes, New shell, nested shells |
 | `layout/tree.ts` | pure tree operations (`split`, `close`, `focusAfterClose`, `setRatio`, `updatePane`); validator from `shared/layout.js` |
 | `layout/SplitView.tsx` | recursive render; divider drag via CSSOM `flex-basis` |
 | `terminal/TerminalPane.tsx` | xterm lifecycle (fit + web-links addons), header, states, Restart, link tooltip |
@@ -101,7 +110,7 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | shell history | `tests/shell-history.test.mjs` | in the backend suite | real `bash`/`zsh` from PATH over pipes, temp HOME with hostile dotfiles; skips a shell that is absent |
 | frontend | `frontend/src/**/*.test.ts(x)` | `npm run test:web` | vitest + happy-dom; xterm is mocked in `TerminalPane.test.tsx`; `palette.test.ts` pins cc's tokens |
 | real cc | `tests/integration/*.test.mjs` | `RUN_REAL_CC=1 npm run test:server` | skipped otherwise; each file boots its own scratch cc |
-| visual | `harness/playwright/scenarios/*.mjs` | `node harness/playwright/run.mjs [scenario…]` | needs `CC_PROJECTS_ROOT`; fails on any CSP violation, page error or dialog; screenshots in `harness/playwright/out/` |
+| visual | `harness/playwright/scenarios/*.mjs` (`split`, `reload`, `history`, `untrusted-output`, `tabs`) | `node harness/playwright/run.mjs [scenario…]` | needs `CC_PROJECTS_ROOT`; fails on any CSP violation, page error or dialog; screenshots in `harness/playwright/out/` |
 
-- **Scratch cc** (`harness/scratch-cc.mjs`): `git clone --no-hardlinks` of `$CC_PROJECTS_ROOT/code-conductor`, checked out at `CC_COMMIT`, `node_modules` symlinked; started by its `scripts/run-isolated.sh` with a free port, its own root and a temp `HOME` in a sanitized environment; this worktree's tracked and unignored files copied into a fresh repo, built, adopted, enabled and started; projects `alpha` and `beta` created. `addProviderProject` registers a System launched with cc's `referenceProvider.ts` (optionally `--no-pty`). Teardown stops the plugin and kills only the cc pid whose `/proc` cwd and environment prove it is the scratch one (or, once cc is gone, the plugin process group whose cwd is the scratch copy). `KEEP_SCRATCH=1` keeps the temp dir.
+- **Scratch cc** (`harness/scratch-cc.mjs`): `git clone --no-hardlinks` of `$CC_PROJECTS_ROOT/code-conductor`, checked out at `CC_COMMIT`, `node_modules` symlinked; started by its `scripts/run-isolated.sh` with a free port, its own root and a temp `HOME` in a sanitized environment; this worktree's tracked and unignored files copied into a fresh repo, built, adopted, enabled and started; projects `alpha` and `beta` created. `createWorktree` makes a worktree through cc's MCP `create_worktree`. `addProviderProject` registers a System launched with cc's `referenceProvider.ts` (optionally `--no-pty`). Teardown stops the plugin and kills only the cc pid whose `/proc` cwd and environment prove it is the scratch one (or, once cc is gone, the plugin process group whose cwd is the scratch copy). `KEEP_SCRATCH=1` keeps the temp dir.
 - **Mutation:** `harness/mutation/` routes cover `tests/**/*.test.mjs` and `frontend/src/**/*.test.ts(x)`; the real-cc files skip there.

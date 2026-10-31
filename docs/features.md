@@ -4,19 +4,44 @@
 
 ## Layout of the page
 
-- **Sidebar** — every cc project. Per project:
-  - its name (selects it; the route is `?project=<name>`);
-  - **+** (`New shell in <project>`): opens a shell and puts it beside the focused pane, or as the only pane;
-  - a **worktree picker** (only when the project has worktrees): main checkout by default, else one of cc's worktrees; the next **+** opens there;
-  - a note when terminals cannot open there: cc's own reason (which names the provider) for a System without a pty — **+** is disabled; "System unreachable: …" for a System cc cannot reach — **+** stays enabled, so the user can retry;
-  - its shells, nested, each labelled `shell N` (its number within the project, never reused while the backend runs) followed by the program's title, or else its worktree (`main` for the main checkout), and its state when not running; clicking one focuses its pane (a shell no pane shows gets one). A closed shell leaves the list at once; if the backend could not kill it, it is listed again.
-- **Workspace** — the selected project's split layout. Width capped by cc's session width (`--cc-session-width`).
-- Layouts persist per project on the backend, so the arrangement survives a reload or another browser. A change still waiting to be saved (a closed pane, a dragged divider) is sent when the page is hidden or reloaded.
+- **Tab bar** — one tab per open checkout, over the whole width. **+** (`Open checkout`) opens the picker.
+- **Workspace** — the active tab's split layout. Width capped by cc's session width (`--cc-session-width`).
+
+## Tabs
+
+- A tab is one **checkout**: a project's main checkout, or one of its worktrees. Its label is `<project>` or `<project>/<worktree>`; each tab has its own split layout, and every shell in it runs in that checkout.
+- Per tab: a `⋮` actions button (`Actions for <label>`; a right-click on the tab opens the same menu) and `×` (`Close <label>`).
+- **Menu:** **Close**, **Close others** (only with more than one tab), **Copy name** (the label, to the clipboard). Arrow keys move, Esc closes.
+- **Closing a tab** (×, menu, **Close others**, the gone banner's **Close tab**):
+  - the page asks the backend for the running shells of the target checkouts; when there are any (or the count cannot be fetched), a dialog says how many will be killed — **Cancel** sends nothing, **Kill shells and close** proceeds;
+  - the backend then kills every shell of the checkout (including ones the page does not list) and deletes its saved layout; the tab goes away only after that succeeded, else it stays and the error is shown;
+  - a shell that finishes opening after its tab closed is killed at once.
+- **Shortcuts:** Ctrl/⌘+1…8 activate that tab, Ctrl/⌘+9 the last. They work while focus is inside the page, including inside a terminal, and the key never reaches the shell. Not handled while a dialog is open.
+- **Persistence:** the open tabs and the active one are kept per browser (`localStorage`, key `code-terminal:tabs`); layouts and shells live on the backend. The active tab is mirrored into the URL: `?project=<name>` (main checkout) or `?project=<name>&worktree=<name>`. Opening such a URL adds or activates that tab; browser back/forward do the same. Restoring tabs never starts a shell.
+- **Gone checkout:** when cc's project list no longer has the tab's project or worktree, its tab is struck through and a banner above the layout says so, with **Close tab**. Its shells keep running until the tab is closed; New shell, split and Restart show cc's refusal.
+- **Shells no pane shows** (a layout save was lost, or another browser's older layout overwrote this one): a banner "N shells in this checkout are not in this layout" with **Show**, which gives each a pane beside the focused one. Never automatic: a shell has one client, and adopting it would take it from another browser.
+
+## Checkout picker
+
+- Opened by **+** or **Open a checkout**; the project list is reloaded each time it opens.
+- Projects grouped by workspace (alphabetical, **No workspace** last), alphabetical within; the filter box matches a project or workspace name, case-insensitively.
+- Per project: a chevron (`Show checkouts of <project>`) listing **(main checkout)** and each worktree with its branch; the name button opens the main checkout. A project on another System carries a `<system> · <remoteId>` badge.
+- **Running count:** a `N running` badge on each checkout with running shells, counting only that exact checkout; absent at 0.
+- **Availability:** a project whose System has no pty is disabled with cc's own reason (its name and chevron); "System unreachable: …" and "Terminals may not open: …" stay enabled, so the user can retry.
+- Picking a checkout opens its tab (or activates it when open). When it has no shells yet and terminals can open, one shell is started.
+- A failed listing shows the message and **Retry**.
+
+## Workspace
+
+- No tab open: "No checkout open." and **Open a checkout**.
+- Empty layout: "No shells in <label> yet." and **New shell** — disabled with cc's reason when the System has no pty.
+- Layouts persist per checkout on the backend, so the arrangement survives a reload or another browser. A change still waiting to be saved (a closed pane, a dragged divider) is sent when the page is hidden or reloaded.
+- Inactive tabs are unmounted: switching back reattaches each pane and replays its screen.
 
 ## Panes
 
-- Header: the program's title (as text), a worktree badge (`main` for the main checkout), and three buttons: **Split side by side**, **Split stacked**, **Close shell**.
-- A split opens a new shell in the same worktree. **Close** kills the shell; its sibling takes the space and focus moves there.
+- Header: the program's title (as text) or else the tab's label, and three buttons: **Split side by side**, **Split stacked**, **Close shell**.
+- A split opens a new shell in the tab's checkout. **Close** kills the shell; its sibling takes the space and focus moves there.
 - Dividers drag with the pointer, or move with the arrow keys when focused; ratios are clamped so no pane vanishes.
 - The terminal's size follows the pane: every resize reaches the program (`stty size` matches the pane).
 
@@ -31,7 +56,7 @@
 | `failed: <error>` | cc lost the terminal (e.g. its provider died) | **Restart** |
 | `ended` | the shell is gone: cc or the plugin restarted, or the session was killed | **Restart** |
 
-- **Restart** opens a new shell in the same project and worktree, in the same pane.
+- **Restart** opens a new shell in the same checkout, in the same pane.
 - **Reload** keeps shells: each pane reattaches and replays its screen and scrollback (up to `SCROLLBACK_LINES`, `lib/session.js`), including a full-screen program's alternate screen and modes such as bracketed paste.
 
 ## Links
