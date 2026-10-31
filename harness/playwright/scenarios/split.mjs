@@ -6,7 +6,7 @@ import { newShell, openProject, paneSize, panes, splitPane, sttySize, until } fr
 export async function run({ page, scratch, shot }) {
   await scratch.api('POST', '/api/projects', { name: 'split-demo', noProjectConventions: true });
   await openProject(page, scratch, 'split-demo');
-  const first = await newShell(page, 'split-demo');
+  const first = await newShell(page);
   const second = await splitPane(page, first, 'Split side by side');
   await shot('split-1-vertical.png');
   const third = await splitPane(page, second, 'Split stacked');

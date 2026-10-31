@@ -4,8 +4,8 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin:
 
 ## What it does
 
-- A sidebar of cc's projects; **+** opens a shell in the project's main checkout or a chosen worktree.
-- Split panes (side by side, stacked), draggable dividers, a layout saved per project.
+- A tab bar with one tab per checkout (a project's main checkout or a worktree), and a picker that lists cc's projects by workspace with availability and running-shell counts.
+- Split panes (side by side, stacked), draggable dividers, a layout saved per checkout.
 - xterm.js terminals with 256-colour and truecolor, full-screen programs, safe link handling and clipboard keys.
 - Per-project shell history for bash and zsh, shared live between a project's shells.
 - Shells live in the plugin backend: a browser reload reattaches and replays screen and scrollback.
@@ -21,7 +21,7 @@ Details: [docs/features.md](docs/features.md).
 - **Serving:** `server.js` listens on `127.0.0.1:$PORT` (default 4000), serves an allowlist of files from `frontend/dist`, and sends a CSP and `nosniff` on every response.
 - **Security:** every upgrade and API request passes an Origin/Host guard that refuses cross-site reads and mutations and any request naming the backend's own port (a direct dial, or DNS rebinding onto that port); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md#request-guard).
 - **Data:** `$PROJECTS_ROOT/.code-terminal/` (layouts, history, shell integration); on other Systems `$HOME/.local/state/code-terminal/`.
-- **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; route state in `?project=`; width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
+- **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; route state in `?project=<name>[&worktree=<name>]`; open tabs in `localStorage` (`code-terminal:tabs`); width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
 
 ```
 conductor.plugin.json   plugin manifest
@@ -51,7 +51,7 @@ Internals: [docs/architecture.md](docs/architecture.md).
 | `npm run typecheck` | `tsc -p frontend` |
 | `npm test` | backend (`node --test "tests/**/*.test.mjs"`) then frontend (`vitest run --config frontend/vitest.config.ts`) |
 | `RUN_REAL_CC=1 npm run test:server` | also runs `tests/integration/` against scratch ccs (needs `CC_PROJECTS_ROOT`) |
-| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
+| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output\|tabs]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
 | `node harness/playwright/screenshot.mjs [out.png]` | screenshot of the standalone page |
 
 ## Verification harnesses
@@ -63,6 +63,7 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 
 ## Known limitations
 
+- Ctrl/⌘+1…9 switch tabs only while focus is inside the plugin's frame, and never reach the shell.
 - Shells do not survive a restart of the plugin backend, of cc, or of a remote System's provider: their panes show `ended` with **Restart**.
 - bash runs as an interactive shell that loads the login files itself, not as `bash -l` (a login bash never reads an init file, which per-project history needs).
 - The history guarantees cover bash and zsh only; another login shell gets `HISTFILE` and may ignore it.

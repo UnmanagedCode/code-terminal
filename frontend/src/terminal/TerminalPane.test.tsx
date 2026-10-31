@@ -36,10 +36,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const pane = { kind: 'pane' as const, id: 'p1', sessionId: '0b7c1f5e-3c1a-4c1e-9d2a-1f2e3d4c5b6a', worktree: 'feature' };
+const pane = { kind: 'pane' as const, id: 'p1', sessionId: '0b7c1f5e-3c1a-4c1e-9d2a-1f2e3d4c5b6a' };
 
 function renderPane(onSessionReplaced = vi.fn()) {
-  render(<TerminalPane project="alpha" pane={pane} focused onFocus={() => {}} onSplit={() => {}} onClose={() => {}} onSessionReplaced={onSessionReplaced} />);
+  render(<TerminalPane checkout={{ project: 'alpha', worktree: 'feature' }} pane={pane} focused onFocus={() => {}} onSplit={() => {}} onClose={() => {}} onSessionReplaced={onSessionReplaced} />);
   return onSessionReplaced;
 }
 
@@ -65,7 +65,7 @@ describe('TerminalPane', () => {
     expect(screen.queryByRole('button', { name: 'Restart' })).toBeNull();
   });
 
-  test('Restart opens a new session in the same project and worktree and puts it in this pane', async () => {
+  test('Restart opens a new session in the same checkout and puts it in this pane', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ id: 'new-id' }), { status: 201, headers: { 'content-type': 'application/json' } }));
     const onSessionReplaced = renderPane();
     await enter({ kind: 'exited', code: 0, signal: null });

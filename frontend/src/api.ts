@@ -1,5 +1,6 @@
 // The backend's REST surface (docs/protocol.md → REST). Relative URLs only: the
 // page is served under cc's /plugins/code-terminal/.
+import type { Checkout } from './checkout';
 import type { Layout } from './layout/tree';
 
 export type TerminalAvailability =
@@ -8,7 +9,7 @@ export type TerminalAvailability =
 
 export type WorktreeInfo = { name: string; path: string; branch: string | null };
 export type ProjectInfo = {
-  name: string; path: string; system: string; remoteId: string | null;
+  name: string; path: string; system: string; remoteId: string | null; workspace: string | null;
   worktrees: WorktreeInfo[]; terminal: TerminalAvailability;
 };
 
@@ -44,10 +45,15 @@ async function call<T>(method: string, url: string, body?: unknown, { keepalive 
 
 export const listProjects = () => call<{ projects: ProjectInfo[] }>('GET', 'api/projects').then((r) => r.projects);
 export const listSessions = () => call<{ sessions: SessionInfo[] }>('GET', 'api/sessions').then((r) => r.sessions);
-export const createSession = (project: string, worktree: string | null, size: { cols: number; rows: number }) =>
-  call<{ id: string }>('POST', 'api/sessions', { project, worktree, cols: size.cols, rows: size.rows }).then((r) => r.id);
+export const createSession = (c: Checkout, size: { cols: number; rows: number }) =>
+  call<{ id: string }>('POST', 'api/sessions', { project: c.project, worktree: c.worktree, cols: size.cols, rows: size.rows }).then((r) => r.id);
 export const killSession = (id: string) => call<null>('DELETE', `api/sessions/${encodeURIComponent(id)}`, undefined, { keepalive: true });
-export const getLayout = (project: string) =>
-  call<{ tree: Layout | null }>('GET', `api/layouts/${encodeURIComponent(project)}`).then((r) => r.tree);
-export const putLayout = (project: string, tree: Layout | null) =>
-  call<null>('PUT', `api/layouts/${encodeURIComponent(project)}`, { tree }, { keepalive: true });
+
+// `api/<noun>/<project>[?worktree=<w>]`: no worktree means the main checkout.
+const checkoutUrl = (noun: string, c: Checkout) =>
+  `api/${noun}/${encodeURIComponent(c.project)}${c.worktree === null ? '' : `?worktree=${encodeURIComponent(c.worktree)}`}`;
+
+export const getLayout = (c: Checkout) => call<{ tree: Layout | null }>('GET', checkoutUrl('layouts', c)).then((r) => r.tree);
+export const putLayout = (c: Checkout, tree: Layout | null) => call<null>('PUT', checkoutUrl('layouts', c), { tree }, { keepalive: true });
+// Kills every shell of the checkout and drops its layout.
+export const closeCheckout = (c: Checkout) => call<null>('DELETE', checkoutUrl('checkouts', c), undefined, { keepalive: true });

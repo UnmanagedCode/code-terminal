@@ -85,6 +85,6 @@ export function runForReal(body) {
   });
 }
 
-export function projectRow(name, { system = 'local', remoteId = null, path = `/projects/${name}`, worktrees = [] } = {}) {
-  return { name, path, system, remoteId, worktrees };
+export function projectRow(name, { system = 'local', remoteId = null, path = `/projects/${name}`, worktrees = [], workspace } = {}) {
+  return { name, path, system, remoteId, worktrees, ...(workspace === undefined ? {} : { workspace }) };
 }

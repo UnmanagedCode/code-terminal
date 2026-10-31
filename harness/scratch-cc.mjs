@@ -175,6 +175,26 @@ export async function addProviderProject(scratch, { system, name, args = [] }) {
   return systemPath;
 }
 
+// Creates worktree `name` of `project` through cc's MCP `create_worktree`, giving
+// the project a first commit when it has none; returns {name, path}.
+export async function createWorktree(scratch, project, name) {
+  const row = (await scratch.api('GET', '/api/projects')).find((p) => p.name === project);
+  if (!row) throw new Error(`no project ${project} in the scratch cc`);
+  const git = (...a) => sh('git', ['-c', 'user.name=scratch', '-c', 'user.email=scratch@localhost', ...a], { cwd: row.path });
+  try { git('rev-parse', '--verify', 'HEAD'); } catch { git('commit', '--allow-empty', '-qm', 'scratch'); }
+  const res = await fetch(`${scratch.url}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'create_worktree', arguments: { project, name } } }),
+    signal: AbortSignal.timeout(120_000),
+  });
+  const body = await res.json();
+  if (!res.ok || body.error || body.result?.isError) throw new Error(`create_worktree failed: ${JSON.stringify(body).slice(0, 2000)}`);
+  const made = (await scratch.api('GET', `/api/projects/${encodeURIComponent(project)}/worktrees`)).find((w) => w.worktreeName.includes(name));
+  if (!made) throw new Error(`worktree ${name} not listed after create_worktree`);
+  return { name: made.worktreeName, path: made.worktreePath };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   // Manual use: boot one, print where, stop on Ctrl+C.
   const s = await startScratchCc();

@@ -7,6 +7,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { clampTitle, SCROLLBACK_LINES } from '../../../shared/terminal.js';
 import { createSession } from '../api';
+import { checkoutLabel, type Checkout } from '../checkout';
 import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
 import { attachClipboardKeys } from './keys';
@@ -16,7 +17,7 @@ import { onThemeChange, terminalTheme, TERMINAL_FONT } from './theme';
 
 
 type Props = {
-  project: string;
+  checkout: Checkout;
   pane: Pane;
   focused: boolean;
   onFocus(): void;
@@ -42,7 +43,7 @@ function stateText(s: ConnState): string | null {
 
 const isOver = (s: ConnState) => s.kind === 'exited' || s.kind === 'failed' || s.kind === 'ended';
 
-export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose, onSessionReplaced }: Props) {
+export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClose, onSessionReplaced }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const conn = useRef<Connection | null>(null);
@@ -129,7 +130,7 @@ export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose
     setRestarting(true);
     setRestartError(null);
     try {
-      const id = await createSession(project, pane.worktree, { cols: size.cols || 80, rows: size.rows || 24 });
+      const id = await createSession(checkout, { cols: size.cols || 80, rows: size.rows || 24 });
       onSessionReplaced(id);
     } catch (e) {
       setRestartError((e as Error).message);
@@ -139,7 +140,7 @@ export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose
   }
 
   const note = stateText(state);
-  const label = title || pane.worktree || project;
+  const label = title || checkoutLabel(checkout);
   return (
     <section
       className={`pane${focused ? ' pane-focused' : ''}`}
@@ -154,7 +155,6 @@ export function TerminalPane({ project, pane, focused, onFocus, onSplit, onClose
     >
       <header className="pane-header">
         <span className="pane-title" title={label}>{label}</span>
-        <span className="badge">{pane.worktree ?? 'main'}</span>
         <span className="pane-actions">
           <button type="button" className="icon-button" aria-label="Split side by side" title="Split side by side" onClick={() => onSplit('row')}><SplitRowIcon /></button>
           <button type="button" className="icon-button" aria-label="Split stacked" title="Split stacked" onClick={() => onSplit('col')}><SplitColIcon /></button>

@@ -8,8 +8,8 @@ export { validateLayout };
 // 'row' puts panes side by side (a vertical split); 'col' stacks them (a horizontal split).
 export type SplitDir = 'row' | 'col';
 
-export function newPane(sessionId: string | null, worktree: string | null): Pane {
-  return { kind: 'pane', id: `p${crypto.randomUUID().slice(0, 8)}`, sessionId, worktree };
+export function newPane(sessionId: string | null): Pane {
+  return { kind: 'pane', id: `p${crypto.randomUUID().slice(0, 8)}`, sessionId };
 }
 
 export function panes(tree: Layout | null): Pane[] {

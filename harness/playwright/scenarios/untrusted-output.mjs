@@ -24,7 +24,7 @@ export async function run({ page, context, scratch, shot, issues }) {
   context.on('page', (p) => popups.push(p));
 
   await openProject(page, scratch, 'untrusted-demo');
-  const pane = await newShell(page, 'untrusted-demo');
+  const pane = await newShell(page);
 
   // OSC 52: the program asks to set the clipboard.
   await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));

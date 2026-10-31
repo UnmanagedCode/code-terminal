@@ -1,165 +1,184 @@
-// The page: the project sidebar and the selected project's split layout.
-// Route state is `?project=<name>`; layouts persist per project on the backend.
+// The page: a tab bar of open checkouts over the active checkout's split layout.
+// Route state is `?project=<name>[&worktree=<name>]`; layouts persist per checkout on the backend.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api';
-import type { ProjectInfo, SessionInfo } from './api';
+import { availabilityNote, checkoutKey, checkoutLabel, checkoutPresence, goneReason, sameCheckout, type Checkout } from './checkout';
+import { ConfirmDialog } from './dialog/ConfirmDialog';
 import { SplitView } from './layout/SplitView';
-import { close, focusAfterClose, newPane, panes, setRatio, split, updatePane, type Layout, type Pane, type SplitDir } from './layout/tree';
-import { Sidebar } from './sidebar/Sidebar';
+import { close, focusAfterClose, newPane, panes, setRatio, split, updatePane, type Pane, type SplitDir } from './layout/tree';
+import { useLayouts } from './layout/useLayouts';
+import { CheckoutPicker } from './picker/CheckoutPicker';
+import { useSessions } from './sessions/useSessions';
+import { TabBar } from './tabs/TabBar';
+import { useTabShortcuts } from './tabs/useTabShortcuts';
+import { useTabs } from './tabs/useTabs';
 import { TerminalPane } from './terminal/TerminalPane';
+import type { ProjectInfo } from './api';
 
-const SAVE_DEBOUNCE_MS = 300;
-const SESSIONS_POLL_MS = 3000;
 // A new session's size until its pane attaches with the real one.
 const INITIAL_SIZE = { cols: 80, rows: 24 };
 
-const readRoute = () => new URLSearchParams(location.search).get('project');
+type Confirm = { checkouts: Checkout[]; running: number | null };
 
 export function App() {
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<api.ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [selected, setSelected] = useState<string | null>(readRoute);
-  const [layouts, setLayouts] = useState<Record<string, Layout | null>>({});
-  const [focused, setFocused] = useState<string | null>(null);
-  const layoutsRef = useRef(layouts);
-  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [focused, setFocused] = useState<Record<string, string | null>>({});
+  const focusedRef = useRef(focused);
 
   const report = useCallback((e: unknown) => setNotice(e instanceof Error ? e.message : String(e)), []);
-  // Sessions this page killed: kept out of the list even when a listing fetched
-  // before the kill landed still carries them.
-  const killed = useRef(new Set<string>());
-  const refreshSessions = useCallback(() => {
-    api.listSessions().then((list) => setSessions(list.filter((s) => !killed.current.has(s.id))), () => {});
-  }, []);
-  // Drops a session from the list at once, then refreshes once the backend has
-  // answered the kill. A kill that failed (anything but 404, which means the
-  // session is already gone) leaves the shell running, so it is listed again.
-  const kill = useCallback((sessionId: string) => {
-    killed.current.add(sessionId);
-    setSessions((list) => list.filter((s) => s.id !== sessionId));
-    api.killSession(sessionId).catch((e: unknown) => {
-      if (!(e instanceof api.ApiError && e.status === 404)) killed.current.delete(sessionId);
-    }).finally(refreshSessions);
-  }, [refreshSessions]);
+  const { tabs, ref: tabsRef, dispatch, active } = useTabs();
+  const isOpen = useCallback((c: Checkout) => tabsRef.current.open.some((t) => sameCheckout(t, c)), [tabsRef]);
+  const layouts = useLayouts(isOpen, report);
+  const { ensureLayout, mutate } = layouts;
+  const { sessions, refresh: refreshSessions, kill, markKilled, isKilled } = useSessions(projects !== null);
 
-  useEffect(() => {
-    let poll: ReturnType<typeof setInterval> | undefined;
-    api.listProjects().then((list) => {
-      setProjects(list);
-      refreshSessions();
-      poll = setInterval(refreshSessions, SESSIONS_POLL_MS);
-    }, (e: unknown) => {
-      if (e instanceof api.ApiError) setFatal(e);
-      else report(e);
-    });
-    const onPop = () => setSelected(readRoute());
-    window.addEventListener('popstate', onPop);
-    return () => { clearInterval(poll); window.removeEventListener('popstate', onPop); };
-  }, [refreshSessions, report]);
-
-  const ensureLayout = useCallback(async (project: string): Promise<Layout | null> => {
-    if (project in layoutsRef.current) return layoutsRef.current[project];
-    const tree = await api.getLayout(project);
-    if (!(project in layoutsRef.current)) {
-      layoutsRef.current = { ...layoutsRef.current, [project]: tree };
-      setLayouts(layoutsRef.current);
-    }
-    return layoutsRef.current[project];
-  }, []);
-
-  useEffect(() => {
-    if (!selected) return;
-    ensureLayout(selected).then((t) => setFocused((f) => (f && panes(t).some((p) => p.id === f) ? f : panes(t)[0]?.id ?? null)), report);
-  }, [selected, ensureLayout, report]);
-
-  const save = useCallback((project: string) => {
-    clearTimeout(saveTimers.current.get(project));
-    saveTimers.current.delete(project);
-    api.putLayout(project, layoutsRef.current[project] ?? null).catch(report);
-  }, [report]);
-
-  // Applies `fn` to a project's layout and saves it shortly after.
-  const mutate = useCallback((project: string, fn: (t: Layout | null) => Layout | null) => {
-    layoutsRef.current = { ...layoutsRef.current, [project]: fn(layoutsRef.current[project] ?? null) };
-    setLayouts(layoutsRef.current);
-    clearTimeout(saveTimers.current.get(project));
-    saveTimers.current.set(project, setTimeout(() => save(project), SAVE_DEBOUNCE_MS));
-  }, [save]);
-
-  // A save still waiting out its debounce is sent now when the page goes away
-  // (reload, navigation, closing the tab) or the app unmounts.
-  useEffect(() => {
-    const flush = () => { for (const project of [...saveTimers.current.keys()]) save(project); };
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [save]);
-
-  const select = useCallback((project: string) => {
-    setSelected(project);
-    history.pushState(null, '', `?project=${encodeURIComponent(project)}`);
-  }, []);
-
-  // Puts `pane` next to the focused pane of `project` (or as its only pane), and focuses it.
-  const place = useCallback(async (project: string, pane: Pane) => {
-    const tree = await ensureLayout(project);
-    const at = tree && (panes(tree).find((p) => p.id === focused && project === selected) ?? panes(tree).at(-1));
-    mutate(project, (t) => (t && at ? split(t, at.id, 'row', pane) : pane));
-    select(project);
-    setFocused(pane.id);
-  }, [ensureLayout, mutate, select, focused, selected]);
-
-  const newShell = useCallback(async (project: string, worktree: string | null) => {
+  const loadProjects = useCallback(async (initial: boolean) => {
     try {
-      const id = await api.createSession(project, worktree, INITIAL_SIZE);
-      await place(project, newPane(id, worktree));
-      refreshSessions();
-    } catch (e) { report(e); }
-  }, [place, refreshSessions, report]);
-
-  const splitPane = useCallback(async (project: string, pane: Pane, dir: SplitDir) => {
-    try {
-      const id = await api.createSession(project, pane.worktree, INITIAL_SIZE);
-      const added = newPane(id, pane.worktree);
-      mutate(project, (t) => (t ? split(t, pane.id, dir, added) : added));
-      setFocused(added.id);
-      refreshSessions();
-    } catch (e) { report(e); }
-  }, [mutate, refreshSessions, report]);
-
-  const closePane = useCallback((project: string, pane: Pane) => {
-    if (pane.sessionId) kill(pane.sessionId);
-    const tree = layoutsRef.current[project];
-    if (tree) setFocused(focusAfterClose(tree, pane.id));
-    mutate(project, (t) => (t ? close(t, pane.id) : null));
-  }, [mutate, kill]);
-
-  const replaceSession = useCallback((project: string, pane: Pane, sessionId: string) => {
-    if (pane.sessionId) kill(pane.sessionId);
-    mutate(project, (t) => (t ? updatePane(t, pane.id, { sessionId }) : t));
-    refreshSessions();
-  }, [mutate, kill, refreshSessions]);
-
-  const focusSession = useCallback(async (project: string, sessionId: string) => {
-    try {
-      const tree = await ensureLayout(project);
-      const found = panes(tree).find((p) => p.sessionId === sessionId);
-      if (found) {
-        select(project);
-        setFocused(found.id);
-        return;
+      setProjects(await api.listProjects());
+      setProjectsError(null);
+    } catch (e) {
+      if (initial && e instanceof api.ApiError) setFatal(e);
+      else {
+        setProjectsError(e instanceof Error ? e.message : String(e));
+        if (initial) report(e);
       }
-      // A live session no pane shows (its layout was lost): give it a pane. One
-      // that is gone from the list (killed meanwhile) gets none.
-      const s = sessions.find((x) => x.id === sessionId);
-      if (!s || killed.current.has(sessionId)) return;
-      await place(project, newPane(sessionId, s.worktree));
+    }
+  }, [report]);
+  useEffect(() => { void loadProjects(true); }, [loadProjects]);
+
+  const setFocus = useCallback((c: Checkout, paneId: string | null) => {
+    focusedRef.current = { ...focusedRef.current, [checkoutKey(c)]: paneId };
+    setFocused(focusedRef.current);
+  }, []);
+
+  // The active checkout's layout is loaded, and a pane of it focused.
+  const activeKey = active ? checkoutKey(active) : null;
+  useEffect(() => {
+    if (!active) return;
+    ensureLayout(active).then((t) => {
+      const f = focusedRef.current[checkoutKey(active)];
+      if (!f || !panes(t).some((p) => p.id === f)) setFocus(active, panes(t)[0]?.id ?? null);
+    }, report);
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activate = useCallback((index: number) => dispatch({ type: 'activateIndex', index }), [dispatch]);
+  const tabCount = useCallback(() => tabsRef.current.open.length, [tabsRef]);
+  useTabShortcuts(tabCount, activate);
+
+  // Puts `pane` next to the focused pane of `c` (or as its only pane), and focuses it.
+  const place = useCallback(async (c: Checkout, pane: Pane) => {
+    const tree = await ensureLayout(c);
+    const at = tree && (panes(tree).find((p) => p.id === focusedRef.current[checkoutKey(c)]) ?? panes(tree).at(-1));
+    mutate(c, (t) => (t && at ? split(t, at.id, 'row', pane) : pane));
+    setFocus(c, pane.id);
+  }, [ensureLayout, mutate, setFocus]);
+
+  // A session opened in `c`; null when `c`'s tab was closed meanwhile, in which
+  // case the new shell is killed at once (no shell lives without a tab).
+  const createIn = useCallback(async (c: Checkout): Promise<string | null> => {
+    const id = await api.createSession(c, INITIAL_SIZE);
+    if (isOpen(c)) return id;
+    api.killSession(id).catch(report);
+    return null;
+  }, [isOpen, report]);
+
+  const newShell = useCallback(async (c: Checkout) => {
+    try {
+      const id = await createIn(c);
+      if (id === null) return;
+      await place(c, newPane(id));
+      refreshSessions();
     } catch (e) { report(e); }
-  }, [ensureLayout, place, report, select, sessions]);
+  }, [createIn, place, refreshSessions, report]);
+
+  const splitPane = useCallback(async (c: Checkout, pane: Pane, dir: SplitDir) => {
+    try {
+      const id = await createIn(c);
+      if (id === null) return;
+      const added = newPane(id);
+      mutate(c, (t) => (t ? split(t, pane.id, dir, added) : added));
+      setFocus(c, added.id);
+      refreshSessions();
+    } catch (e) { report(e); }
+  }, [createIn, mutate, setFocus, refreshSessions, report]);
+
+  const closePane = useCallback((c: Checkout, pane: Pane) => {
+    if (pane.sessionId) kill(pane.sessionId);
+    const tree = layouts.ref.current[checkoutKey(c)];
+    if (tree) setFocus(c, focusAfterClose(tree, pane.id));
+    mutate(c, (t) => (t ? close(t, pane.id) : null));
+  }, [layouts.ref, mutate, kill, setFocus]);
+
+  const replaceSession = useCallback((c: Checkout, pane: Pane, sessionId: string) => {
+    if (!isOpen(c)) {
+      api.killSession(sessionId).catch(report);
+      return;
+    }
+    if (pane.sessionId) kill(pane.sessionId);
+    mutate(c, (t) => (t ? updatePane(t, pane.id, { sessionId }) : t));
+    refreshSessions();
+  }, [isOpen, mutate, kill, refreshSessions, report]);
+
+  // Gives every live session of `c` that no pane shows a pane. Never automatic:
+  // another browser may have the shell attached, and a shell has one client.
+  const showHidden = useCallback(async (c: Checkout, ids: string[]) => {
+    try { for (const id of ids) await place(c, newPane(id)); } catch (e) { report(e); }
+  }, [place, report]);
+
+  // Closes the tabs of `cs`: each checkout's shells are killed by the backend
+  // first, and a tab only goes away once that has succeeded.
+  const closeCheckouts = useCallback(async (cs: Checkout[]) => {
+    for (const c of cs) {
+      layouts.hold(c);
+      try {
+        await api.closeCheckout(c);
+      } catch (e) {
+        layouts.release(c);
+        report(e);
+        continue;
+      }
+      markKilled(sessions.filter((s) => sameCheckout(s, c)).map((s) => s.id));
+      const { [checkoutKey(c)]: _gone, ...rest } = focusedRef.current;
+      focusedRef.current = rest;
+      setFocused(rest);
+      const index = tabsRef.current.open.findIndex((t) => sameCheckout(t, c));
+      dispatch({ type: 'close', index });
+      layouts.drop(c);
+    }
+    refreshSessions();
+  }, [layouts, markKilled, sessions, tabsRef, dispatch, refreshSessions, report]);
+
+  // Asks first when a target checkout has running shells; the count is fetched
+  // fresh because the polled list may be stale (a failed fetch asks anyway).
+  const requestClose = useCallback(async (cs: Checkout[]) => {
+    let running: number | null;
+    try {
+      const list = await api.listSessions();
+      running = list.filter((s) => s.state.kind === 'running' && !isKilled(s.id) && cs.some((c) => sameCheckout(s, c))).length;
+    } catch { running = null; }
+    if (running === 0) void closeCheckouts(cs);
+    else setConfirm({ checkouts: cs, running });
+  }, [closeCheckouts, isKilled]);
+
+  const closeTab = (index: number) => { const c = tabs.open[index]; if (c) void requestClose([c]); };
+  const closeOthers = (index: number) => { void requestClose(tabs.open.filter((_, i) => i !== index)); };
+
+  const pick = useCallback(async (c: Checkout) => {
+    dispatch({ type: 'open', checkout: c });
+    try {
+      const tree = await ensureLayout(c);
+      const presence = checkoutPresence(projects, c);
+      const blocked = presence.kind === 'present' && presence.project.terminal.state === 'unavailable';
+      if (tree === null && isOpen(c) && !blocked) await newShell(c);
+    } catch (e) { report(e); }
+  }, [dispatch, ensureLayout, projects, isOpen, newShell, report]);
+
+  const openPicker = () => { setPickerOpen(true); void loadProjects(false); };
 
   if (fatal) {
     return (
@@ -172,11 +191,22 @@ export function App() {
     );
   }
 
-  const tree = selected ? layouts[selected] : undefined;
+  const tree = activeKey ? layouts.layouts[activeKey] : undefined;
+  const presence = checkoutPresence(projects, active ?? { project: '', worktree: null });
+  const gone = active ? goneReason(presence) : null;
+  const terminal = presence.kind === 'present' || presence.kind === 'worktree-gone' ? presence.project.terminal : null;
+  const note = terminal ? availabilityNote(terminal) : null;
+  const unavailable = terminal?.state === 'unavailable';
+  const hidden = active && tree !== undefined
+    ? sessions.filter((s) => sameCheckout(s, active) && !panes(tree).some((p) => p.sessionId === s.id)).map((s) => s.id)
+    : [];
+  const confirmLabel = (cs: Checkout[]) => (cs.length === 1 ? `Close ${checkoutLabel(cs[0])}?` : `Close ${cs.length} tabs?`);
+
   return (
     <div className="app">
-      <Sidebar projects={projects ?? []} sessions={sessions} selected={selected}
-        onSelect={select} onNewShell={(p, w) => void newShell(p, w)} onFocusSession={(p, s) => void focusSession(p, s)} />
+      <TabBar tabs={tabs.open} active={tabs.active} onError={report}
+        goneReason={(c) => goneReason(checkoutPresence(projects, c))}
+        onActivate={activate} onClose={closeTab} onCloseOthers={closeOthers} onOpenPicker={openPicker} />
       <main className="workspace">
         {notice && (
           <div className="alert" role="alert">
@@ -184,28 +214,63 @@ export function App() {
             <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setNotice(null)}>×</button>
           </div>
         )}
-        {!selected && <p className="empty">{projects === null ? 'Loading projects…' : 'Pick a project in the sidebar.'}</p>}
-        {selected && tree === null && <p className="empty">No shells in {selected} yet. Use + next to it in the sidebar.</p>}
-        {selected && tree && (
+        {!active && (
+          <div className="empty">
+            <p>No checkout open.</p>
+            <button type="button" className="button button-default" onClick={openPicker}>Open a checkout</button>
+          </div>
+        )}
+        {active && gone && (
+          <div className="banner" role="status">
+            <span>{checkoutLabel(active)} no longer exists in code-conductor ({gone}). Its shells keep running until you close this tab.</span>
+            <button type="button" className="button button-outline" onClick={() => closeTab(tabs.active)}>Close tab</button>
+          </div>
+        )}
+        {active && hidden.length > 0 && (
+          <div className="banner" role="status">
+            <span>{hidden.length} {hidden.length === 1 ? 'shell' : 'shells'} in this checkout {hidden.length === 1 ? 'is' : 'are'} not in this layout.</span>
+            <button type="button" className="button button-outline" onClick={() => void showHidden(active, hidden)}>Show</button>
+          </div>
+        )}
+        {active && tree === null && hidden.length === 0 && (
+          <div className="empty">
+            <p>No shells in {checkoutLabel(active)} yet.</p>
+            <button type="button" className="button button-default" disabled={unavailable} onClick={() => void newShell(active)}>New shell</button>
+            {note && <p className="empty-note">{note}</p>}
+          </div>
+        )}
+        {active && tree && (
           <SplitView
-            key={selected}
+            key={activeKey}
             tree={tree}
-            onRatio={(path, r) => mutate(selected, (t) => (t ? setRatio(t, path, r) : t))}
+            onRatio={(path, r) => mutate(active, (t) => (t ? setRatio(t, path, r) : t))}
             renderPane={(pane) => (
               <TerminalPane
                 key={pane.id}
-                project={selected}
+                checkout={active}
                 pane={pane}
-                focused={pane.id === focused}
-                onFocus={() => setFocused(pane.id)}
-                onSplit={(dir) => void splitPane(selected, pane, dir)}
-                onClose={() => closePane(selected, pane)}
-                onSessionReplaced={(id) => replaceSession(selected, pane, id)}
+                focused={pane.id === focused[activeKey!]}
+                onFocus={() => setFocus(active, pane.id)}
+                onSplit={(dir) => void splitPane(active, pane, dir)}
+                onClose={() => closePane(active, pane)}
+                onSessionReplaced={(id) => replaceSession(active, pane, id)}
               />
             )}
           />
         )}
       </main>
+      <CheckoutPicker open={pickerOpen} projects={projects} error={projectsError} sessions={sessions}
+        onRetry={() => void loadProjects(false)} onOpen={(c) => void pick(c)} onClose={() => setPickerOpen(false)} />
+      {confirm && (
+        <ConfirmDialog
+          title={confirmLabel(confirm.checkouts)}
+          body={confirm.running === null
+            ? 'Running shells, if any, will be killed.'
+            : `${confirm.running} running ${confirm.running === 1 ? 'shell' : 'shells'} will be killed.`}
+          confirmLabel="Kill shells and close"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => { const cs = confirm.checkouts; setConfirm(null); void closeCheckouts(cs); }} />
+      )}
     </div>
   );
 }
