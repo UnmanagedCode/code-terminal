@@ -1,5 +1,5 @@
-import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { TabBar } from './TabBar';
 
 afterEach(cleanup);
@@ -101,4 +101,64 @@ test('the menu is rendered in document.body, not inside the tab strip', () => {
   const menu = screen.getByRole('menu');
   expect(menu.parentElement).toBe(document.body);
   expect(screen.getByRole('tablist').contains(menu)).toBe(false);
+});
+
+// Invariant: the menu always lies inside the viewport horizontally.
+describe('menu placement', () => {
+  const stubRects = (anchor: { left: number; right: number }) => {
+    Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 1000 });
+    return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const box = this.classList.contains('menu') ? { left: 0, right: 144, width: 144 } : { ...anchor, width: anchor.right - anchor.left };
+      return { x: box.left, y: 0, top: 0, bottom: 30, height: 30, toJSON() {}, ...box } as DOMRect;
+    });
+  };
+  const left = () => Number.parseFloat(screen.getByRole('menu').style.left);
+
+  test('a menu too wide to right-align under a button near the left edge is left-aligned to it, within the margin', () => {
+    const spy = stubRects({ left: 20, right: 85 });
+    try {
+      setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for alpha' }));
+      expect(left()).toBe(20);
+    } finally { spy.mockRestore(); }
+  });
+
+  test('a button with room to its left gets the menu right-aligned; one at the far right is pulled back inside the viewport', () => {
+    let spy = stubRects({ left: 540, right: 600 });
+    try {
+      setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for alpha' }));
+      expect(left()).toBe(456);
+    } finally { spy.mockRestore(); }
+    cleanup();
+    spy = stubRects({ left: 960, right: 1010 });
+    try {
+      setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for alpha' }));
+      expect(left()).toBe(1000 - 144 - 8);
+    } finally { spy.mockRestore(); }
+  });
+
+  test('a button hugging the left edge still leaves the menu a margin', () => {
+    const spy = stubRects({ left: 0, right: 30 });
+    try {
+      setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for alpha' }));
+      expect(left()).toBe(8);
+    } finally { spy.mockRestore(); }
+  });
+});
+
+// Invariant: a menu that no longer sits under its opener closes, without taking focus.
+test('the menu closes on window resize and on a scroll of the tab strip, leaving focus where it is', () => {
+  setup();
+  const more = screen.getByRole('button', { name: 'Actions for alpha' });
+  fireEvent.click(more);
+  act(() => { window.dispatchEvent(new Event('resize')); });
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(document.activeElement).not.toBe(more);
+  fireEvent.click(more);
+  fireEvent.scroll(screen.getByRole('tablist'));
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(document.activeElement).not.toBe(more);
 });

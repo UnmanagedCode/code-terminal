@@ -126,4 +126,22 @@ export async function run({ page, scratch, shot }) {
   await until(async () => (await tabNames(page)).length === 1, 'the gone tab to close');
   assert.equal(await activeTab(page).innerText(), 'tabs-demo');
   await shot('tabs-5-after-close.png');
+
+  // A short-labelled first tab sits near the left edge: its menu must still lie inside the viewport.
+  await scratch.api('POST', '/api/projects', { name: 'ab', noProjectConventions: true });
+  await page.getByRole('button', { name: 'Close tabs-demo', exact: true }).click();
+  await page.getByRole('button', { name: 'Kill shells and close' }).click();
+  await page.getByText('No checkout open.').waitFor();
+  await openCheckout(page, 'ab');
+  await page.getByRole('button', { name: 'Actions for ab', exact: true }).click();
+  const menu = page.getByRole('menu');
+  await menu.waitFor();
+  const box = await menu.boundingBox();
+  const width = page.viewportSize().width;
+  assert.ok(box.x >= 0 && box.x + box.width <= width, `the menu (x ${box.x}, width ${box.width}) leaves the viewport [0, ${width}]`);
+  for (const name of ['Close', 'Copy name']) {
+    const item = await page.getByRole('menuitem', { name, exact: true }).boundingBox();
+    assert.ok(item.x >= 0, `${name} starts off-screen at x ${item.x}`);
+  }
+  await shot('tabs-6-first-tab-menu.png');
 }
