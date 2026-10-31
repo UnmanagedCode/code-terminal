@@ -17,9 +17,19 @@
   - the backend then kills every shell of the checkout (including ones the page does not list) and deletes its saved layout; the tab goes away only after that succeeded, else it stays and the error is shown;
   - a shell that finishes opening after its tab closed is killed at once.
 - **Shortcuts:** Ctrl/⌘+1…8 activate that tab, Ctrl/⌘+9 the last. They work while focus is inside the page, including inside a terminal, and the key never reaches the shell. Not handled while a dialog is open.
-- **Persistence:** the open tabs and the active one are kept per browser (`localStorage`, key `code-terminal:tabs`); layouts and shells live on the backend. The active tab is mirrored into the URL: `?project=<name>` (main checkout) or `?project=<name>&worktree=<name>`. Opening such a URL adds or activates that tab; browser back/forward do the same. Restoring tabs never starts a shell.
+- **Persistence:** the open tabs and the active one are kept per browser (`localStorage`, key `code-terminal:tabs`); layouts and shells live on the backend. The active tab is mirrored into the URL: `?project=<name>` (main checkout) or `?project=<name>&worktree=<name>`. Opening such a URL adds or activates that tab; browser back/forward do the same. Restoring tabs never starts a shell. A click from cc's row menu arrives as `?ccProject=` params and is replaced in place by this route, so a reload or Back never repeats it.
 - **Gone checkout:** when cc's project list no longer has the tab's project or worktree, its tab is struck through and a banner above the layout says so, with **Close tab**. Its shells keep running until the tab is closed; New shell, split and Restart show cc's refusal.
 - **Shells no pane shows** (a layout save was lost, or another browser's older layout overwrote this one): a banner "N shells in this checkout are not in this layout" with **Show**, which gives each a pane beside the focused one. Never automatic: a shell has one client, and adopting it would take it from another browser.
+
+## Open from code-conductor
+
+- cc's sidebar adds **Open terminal** to the `⋮` menu of every project row and every worktree row, in a group labelled with the plugin's name. A project row opens its main checkout; a worktree row opens that worktree.
+- It behaves like choosing the checkout in the picker:
+  - the checkout's tab is opened, or selected when it is already open (never duplicated);
+  - a checkout with no saved layout gets one shell; one with a layout shows it and gets no new shell;
+  - when the project's System cannot run terminals, the tab opens with no shell and shows cc's reason.
+- An already-open page retargets in place: the frame is not reloaded.
+- The name cc sends is checked against a freshly fetched project list first. An unknown project or worktree, a missing project, or a failed fetch shows the alert (the name as plain text) and leaves the open tabs and the active tab as they were; nothing is requested for it.
 
 ## Checkout picker
 

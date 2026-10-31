@@ -80,6 +80,19 @@ All under the plugin root (`/plugins/code-terminal/` inside cc). Bodies are JSON
 
 The page's query string names the active tab: `?project=<name>` is that project's main checkout, `?project=<name>&worktree=<name>` one of its worktrees. No `project` means no active tab.
 
+### Menu route
+
+The manifest's `menuItems` (`Open terminal`, scopes `project` and `worktree`, path `/`) make cc open the page with other params; the rules for `menuItems` are in code-conductor's `docs/plugins.md`.
+
+| Param | Meaning |
+|---|---|
+| `ccProject` | project name (form-urlencoded); required |
+| `ccWorktree` | worktree name; absent at project scope (an empty value means the main checkout) |
+
+- Read on load and on every `popstate` (cc's navigate sends one); the page needs no reload.
+- Untrusted: validated against a fresh `GET api/projects` before any other request is built; an unknown name shows the alert and changes no tab.
+- The URL is replaced (not pushed) with the `?project=&worktree=` route of the active tab before validation.
+
 ## Session I/O — `GET /api/sessions/:id/io?cols=N&rows=N` (WebSocket)
 
 - Order: request guard → path match → session lookup (unknown id → raw `404` before the upgrade) → attach.

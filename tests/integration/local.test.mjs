@@ -34,6 +34,16 @@ const getJson = (port, p, headers) => new Promise((resolve, reject) => {
   }).on('error', reject);
 });
 
+// Invariant: cc's own manifest validator accepts the plugin and its menu items.
+test("cc lists the plugin as valid, with the manifest's menuItems", opts, async () => {
+  const { rows } = await scratch.api('GET', '/api/plugins');
+  const row = rows.find((p) => p.id === PLUGIN_ID);
+  const manifest = JSON.parse(fs.readFileSync(new URL('../../conductor.plugin.json', import.meta.url), 'utf8'));
+  assert.notEqual(row.state, 'invalid', JSON.stringify(row.errors));
+  assert.deepEqual(row.errors ?? [], []);
+  assert.deepEqual(row.menuItems, manifest.menuItems);
+});
+
 test('a shell opens in the chosen worktree, or the main checkout', opts, async () => {
   const main = await attach(scratch, await newShell(scratch, { project: 'alpha' }));
   assert.equal((await main.run('pwd')).trim(), feature.parentPath);

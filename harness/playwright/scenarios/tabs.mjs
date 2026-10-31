@@ -5,16 +5,9 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { createWorktree } from '../../scratch-cc.mjs';
-import { activeTab, openCheckout, openProject, paneText, panes, typeLine, until, waitRunning, waitText } from '../lib.mjs';
+import { activeTab, cwdName, openCheckout, openProject, paneText, panes, typeLine, until, waitRunning, waitText } from '../lib.mjs';
 
 const tabNames = (page) => page.getByRole('tab').allInnerTexts();
-
-// The pane's working directory name, read from the shell itself.
-async function cwdName(page, pane) {
-  const tag = `CWD${Math.random().toString(36).slice(2, 7)}`;
-  await typeLine(page, pane, `echo ${tag}=$(basename "$PWD")=`);
-  return (await waitText(pane, new RegExp(`${tag}=([A-Za-z0-9._-]+)=`), `${tag} cwd`))[1];
-}
 
 // The picker's rows for `project`: main checkout and each worktree, with their badges' text.
 async function pickerRows(page, project) {

@@ -10,5 +10,9 @@
   "frontend": {
     "path": "/",
     "navLabel": "Code Terminal"
-  }
+  },
+  "menuItems": [
+    { "label": "Open terminal", "scope": "project", "path": "/" },
+    { "label": "Open terminal", "scope": "worktree", "path": "/" }
+  ]
 }

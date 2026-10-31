@@ -22,3 +22,8 @@ export function writeRoute(c: Checkout | null): void {
   if (search === location.search) return;
   history.pushState(null, '', search || location.pathname);
 }
+
+// Swaps the URL for `c`'s route in place, leaving no history entry behind.
+export function replaceRoute(c: Checkout | null): void {
+  history.replaceState(null, '', routeSearch(c) || location.pathname);
+}

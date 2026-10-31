@@ -13,8 +13,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The cc commit whose `GET /api/terminal` this plugin is built against.
-export const CC_COMMIT = '0a73c021';
+// The cc commit whose `GET /api/terminal` and plugin manifest rules (`menuItems`) this plugin is built against.
+export const CC_COMMIT = '36c33602';
 export const PLUGIN_ID = 'code-terminal';
 const BOOT_TIMEOUT_MS = 240_000;
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
