@@ -80,3 +80,25 @@ test('a tab whose checkout is gone says why in its title', () => {
   expect(screen.getByRole('tab', { name: 'alpha/feat' }).getAttribute('title')).toContain('its worktree was deleted');
   expect(screen.getByRole('tab', { name: 'alpha' }).getAttribute('title')).toBe('alpha');
 });
+
+// Invariant: the ⋮ button toggles its menu (a press on it is not an outside press).
+test('a second press on ⋮ closes the menu and aria-expanded goes back to false', () => {
+  setup();
+  const more = screen.getByRole('button', { name: 'Actions for alpha' });
+  const press = () => { fireEvent.pointerDown(more); fireEvent.click(more); };
+  press();
+  expect(screen.getByRole('menu')).toBeTruthy();
+  expect(more.getAttribute('aria-expanded')).toBe('true');
+  press();
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(more.getAttribute('aria-expanded')).toBe('false');
+});
+
+// Invariant: the menu is rendered outside the tab strip, whose scroll box would clip it.
+test('the menu is rendered in document.body, not inside the tab strip', () => {
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Actions for alpha' }));
+  const menu = screen.getByRole('menu');
+  expect(menu.parentElement).toBe(document.body);
+  expect(screen.getByRole('tablist').contains(menu)).toBe(false);
+});

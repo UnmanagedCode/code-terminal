@@ -67,9 +67,7 @@ button, select { font: inherit; }
 }
 .tab-button { width: 1.5rem; height: 1.5rem; }
 .menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
+  position: fixed;
   z-index: 20;
   min-width: 9rem;
   padding: 0.25rem;

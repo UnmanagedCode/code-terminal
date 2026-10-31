@@ -44,10 +44,11 @@ export function TabBar({ tabs, active, goneReason, onActivate, onClose, onCloseO
               <button type="button" role="tab" className="tab-label" aria-selected={i === active} title={gone ? `${label}: ${gone}` : label}
                 onClick={() => onActivate(i)}>{label}</button>
               <button type="button" className="icon-button tab-button" aria-label={`Actions for ${label}`} aria-haspopup="menu" aria-expanded={menuFor === i}
+                data-menu-opener
                 ref={(el) => { if (el) moreButtons.current.set(String(i), el); else moreButtons.current.delete(String(i)); }}
                 onClick={() => setMenuFor(menuFor === i ? null : i)}><EllipsisVerticalIcon /></button>
               <button type="button" className="icon-button tab-button" aria-label={`Close ${label}`} onClick={() => onClose(i)}><CloseIcon /></button>
-              {menuFor === i && <TabMenu label={`Actions for ${label}`} items={itemsFor(i)} onClose={closeMenu} />}
+              {menuFor === i && <TabMenu label={`Actions for ${label}`} items={itemsFor(i)} anchor={moreButtons.current.get(String(i))!.getBoundingClientRect()} onClose={closeMenu} />}
             </div>
           );
         })}

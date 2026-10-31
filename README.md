@@ -51,7 +51,7 @@ Internals: [docs/architecture.md](docs/architecture.md).
 | `npm run typecheck` | `tsc -p frontend` |
 | `npm test` | backend (`node --test "tests/**/*.test.mjs"`) then frontend (`vitest run --config frontend/vitest.config.ts`) |
 | `RUN_REAL_CC=1 npm run test:server` | also runs `tests/integration/` against scratch ccs (needs `CC_PROJECTS_ROOT`) |
-| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
+| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output\|tabs]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
 | `node harness/playwright/screenshot.mjs [out.png]` | screenshot of the standalone page |
 
 ## Verification harnesses

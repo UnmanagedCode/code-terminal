@@ -98,3 +98,9 @@ test('a project on another System shows its system badge', () => {
   setup([project('far', { system: 'remote-1', remoteId: 'r9' })]);
   expect(screen.getByText('remote-1 · r9')).toBeTruthy();
 });
+
+// Invariant: opening the picker puts the cursor in the filter box.
+test('the filter box has focus once the picker is open', () => {
+  setup([project('alpha')]);
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Filter projects' }));
+});

@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 // A native modal `<dialog>` driven by `open`: the top layer, inert background,
-// focus containment and Esc come with it. Content is mounted only while open.
+// focus containment and Esc come with it. Content is mounted only while open,
+// and the element marked `data-autofocus` takes focus once the dialog is shown
+// (React's `autoFocus` would fire while the dialog is still closed).
 export function Modal({ open, onClose, title, description, children }: {
   open: boolean; onClose(): void; title: string; description?: string; children: ReactNode;
 }) {
@@ -10,7 +12,10 @@ export function Modal({ open, onClose, title, description, children }: {
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      d.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    }
     else if (!open && d.open) d.close();
   }, [open]);
   return (

@@ -146,7 +146,7 @@ test('closing a pane kills its session with a request that survives unload', asy
   expect((kill?.init.headers as Record<string, string>)['content-type']).toBe('application/json');
 });
 
-// Invariant: the killed set keeps a closed pane's shell from coming back as a hidden shell (ported from the sidebar).
+// Invariant: the killed set keeps a closed pane's shell from coming back as a hidden shell.
 test('a closed pane\'s session does not come back as a hidden shell from a stale listing', async () => {
   const calls = host({ layouts: { 'api/layouts/alpha': two }, listed: [info(S1, 1), info(S2, 2)] });
   at('?project=alpha');
@@ -316,6 +316,18 @@ test('sessions of another checkout are not offered as hidden shells', async () =
   await screen.findByRole('region', { name: 'pane p1' });
   await waitFor(() => expect(listings(calls)).toBeGreaterThan(0));
   expect(screen.queryByText(/not in this layout/)).toBeNull();
+});
+
+// Invariant: an empty layout never claims "no shells" while the checkout has hidden shells.
+test('with no saved layout but a live shell, only the hidden-shell banner shows, not the empty state', async () => {
+  host({ listed: [info(S3, 1)] });
+  at('?project=alpha');
+  render(<App />);
+  expect(await screen.findByText(/1 shell in this checkout is not in this layout/)).toBeTruthy();
+  expect(screen.queryByText(/No shells in alpha yet/)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'New shell' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+  await waitFor(() => expect(screen.getAllByRole('region').length).toBe(1));
 });
 
 // Invariant: picking opens a shell in an empty checkout; restoring never does; every shell runs in its tab's checkout.

@@ -232,7 +232,7 @@ export function App() {
             <button type="button" className="button button-outline" onClick={() => void showHidden(active, hidden)}>Show</button>
           </div>
         )}
-        {active && tree === null && (
+        {active && tree === null && hidden.length === 0 && (
           <div className="empty">
             <p>No shells in {checkoutLabel(active)} yet.</p>
             <button type="button" className="button button-default" disabled={unavailable} onClick={() => void newShell(active)}>New shell</button>

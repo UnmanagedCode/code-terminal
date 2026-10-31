@@ -49,6 +49,23 @@ export async function run({ page, scratch, shot }) {
   assert.equal(await cwdName(page, panes(page).first()), 'tabs-demo');
   await shot('tabs-2-two-tabs.png');
 
+  // The ⋮ menu renders fully, below the tab bar (the strip's scroll box must not clip it), and toggles.
+  const more = page.getByRole('button', { name: 'Actions for tabs-demo', exact: true });
+  await more.click();
+  const bar = await page.locator('.tabbar').boundingBox();
+  for (const name of ['Close', 'Close others', 'Copy name']) {
+    const item = page.getByRole('menuitem', { name, exact: true });
+    await item.waitFor();
+    assert.ok(await item.isVisible(), `${name} is not visible`);
+    const box = await item.boundingBox();
+    assert.ok(box.y >= bar.y + bar.height - 1, `${name} (y ${box.y}) is not below the tab bar (bottom ${bar.y + bar.height})`);
+    await item.click({ trial: true });
+  }
+  await shot('tabs-2b-menu.png');
+  await more.click();
+  await page.getByRole('menu').waitFor({ state: 'detached' });
+  assert.equal(await more.getAttribute('aria-expanded'), 'false');
+
   // Each checkout shows one running shell; picking an open checkout only focuses it.
   await until(async () => {
     const { rows } = await pickerRows(page, 'tabs-demo');

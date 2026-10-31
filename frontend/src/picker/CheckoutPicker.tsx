@@ -82,8 +82,7 @@ export function CheckoutPicker({ open, projects, error, sessions, onRetry, onOpe
 
   return (
     <Modal open={open} onClose={onClose} title="Open a checkout" description="Projects registered in code-conductor, on any System.">
-      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-      <input className="input" autoFocus aria-label="Filter projects" placeholder="Filter projects" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <input className="input" data-autofocus aria-label="Filter projects" placeholder="Filter projects" value={filter} onChange={(e) => setFilter(e.target.value)} />
       <div className="picker-list">
         {error && (
           <div className="picker-error">
