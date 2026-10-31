@@ -1,6 +1,6 @@
 // Drives the plugin page in a scratch code-conductor through each scenario.
 // Usage: node harness/playwright/run.mjs [scenario...]   (needs CC_PROJECTS_ROOT)
-// Scenarios: split, reload, history, untrusted-output. Screenshots go to harness/playwright/out/.
+// Scenarios: split, reload, history, untrusted-output, tabs. Screenshots go to harness/playwright/out/.
 // Exits non-zero when any scenario fails or the page logs a CSP violation, error or dialog.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { startScratchCc } from '../scratch-cc.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, 'out');
-const ALL = ['split', 'reload', 'history', 'untrusted-output'];
+const ALL = ['split', 'reload', 'history', 'untrusted-output', 'tabs'];
 const names = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 for (const n of names) if (!ALL.includes(n)) throw new Error(`unknown scenario ${n}; one of ${ALL.join(', ')}`);
 fs.mkdirSync(out, { recursive: true });

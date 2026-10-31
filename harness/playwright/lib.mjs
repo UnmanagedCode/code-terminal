@@ -1,5 +1,5 @@
 // Page helpers shared by the scenarios: they drive the plugin page the way a
-// person does (sidebar buttons, typing into a pane) and read xterm's DOM rows.
+// person does (tabs, the picker, typing into a pane) and read xterm's DOM rows.
 
 export const panes = (page) => page.locator('section.pane');
 export const focusedPane = (page) => page.locator('section.pane.pane-focused');
@@ -15,24 +15,43 @@ export async function until(fn, what, ms = 20000) {
   }
 }
 
+export const activeTab = (page) => page.getByRole('tab', { selected: true });
+
+// Opens the page on a project's main checkout through the route (the `?project=` link) and waits for its tab.
 export async function openProject(page, scratch, project) {
   await page.goto(`${scratch.pluginBase}?project=${encodeURIComponent(project)}`);
-  await page.getByRole('group', { name: project }).waitFor();
+  await page.getByRole('tab', { name: project, exact: true }).waitFor();
 }
 
 export async function waitRunning(pane) {
   await until(async () => (await pane.getAttribute('data-state')) === 'running', 'a running pane');
 }
 
-// Opens a shell from the sidebar; resolves the new (focused) pane, running.
-export async function newShell(page, project) {
+// Opens a shell from the empty checkout's New shell button; resolves the new (focused) pane, running.
+export async function newShell(page) {
   const before = await panes(page).count();
-  await page.getByRole('button', { name: `New shell in ${project}` }).click();
+  await page.getByRole('button', { name: 'New shell' }).click();
   await until(async () => (await panes(page).count()) === before + 1, 'a new pane');
   const id = await focusedPane(page).getAttribute('data-pane-id');
   const pane = paneById(page, id);
   await waitRunning(pane);
   return pane;
+}
+
+// Picks a checkout in the picker (the main checkout, or `worktree`); resolves once its tab is active.
+export async function openCheckout(page, project, worktree = null) {
+  await page.getByRole('button', { name: 'Open checkout' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: 'Filter projects' }).fill(project);
+  if (worktree) {
+    await dialog.getByRole('button', { name: `Show checkouts of ${project}` }).click();
+    await dialog.getByRole('list', { name: `Checkouts of ${project}` }).getByRole('button', { name: worktree }).click();
+  } else {
+    await dialog.getByRole('button', { name: project, exact: true }).click();
+  }
+  const label = worktree ? `${project}/${worktree}` : project;
+  await until(async () => (await activeTab(page).innerText().catch(() => '')) === label, `the ${label} tab to be active`);
+  await waitRunning(panes(page).first());
 }
 
 // Splits `pane` ('Split side by side' | 'Split stacked'); resolves the new pane, running.
@@ -53,6 +72,11 @@ export async function waitText(pane, pattern, what = String(pattern), ms) {
     const text = await paneText(pane);
     return typeof pattern === 'string' ? text.includes(pattern) && text : pattern.exec(text);
   }, what, ms);
+}
+
+// Like waitText over the pane's text with its rows joined: a long command line soft-wraps at the pane's width.
+export async function waitUnwrapped(pane, pattern, what = String(pattern), ms) {
+  return until(async () => pattern.exec((await paneText(pane)).replaceAll('\n', '')), what, ms);
 }
 
 // Types a line into `pane`'s terminal.
