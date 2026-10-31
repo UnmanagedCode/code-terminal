@@ -3,7 +3,7 @@ import fixtures from '../../../tests/fixtures/layouts.json';
 import { close, focusAfterClose, panes, setRatio, split, validateLayout, type Layout, type Pane } from './tree';
 import { RATIO_MAX, RATIO_MIN } from '../../../shared/layout.js';
 
-const pane = (id: string, worktree: string | null = null): Pane => ({ kind: 'pane', id, sessionId: null, worktree });
+const pane = (id: string): Pane => ({ kind: 'pane', id, sessionId: null });
 
 describe('split', () => {
   test('a vertical split then a horizontal split of the new pane nests correctly', () => {

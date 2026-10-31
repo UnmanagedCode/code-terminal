@@ -13,3 +13,12 @@ export const CloseIcon = () => (
 export const PlusIcon = () => (
   <svg {...base}><path d="M8 3v10M3 8h10" /></svg>
 );
+export const EllipsisVerticalIcon = () => (
+  <svg {...base}><circle cx="8" cy="3.5" r="0.75" /><circle cx="8" cy="8" r="0.75" /><circle cx="8" cy="12.5" r="0.75" /></svg>
+);
+export const ChevronRightIcon = () => (
+  <svg {...base}><path d="M6 3.5L10.5 8 6 12.5" /></svg>
+);
+export const ChevronDownIcon = () => (
+  <svg {...base}><path d="M3.5 6L8 10.5 12.5 6" /></svg>
+);
