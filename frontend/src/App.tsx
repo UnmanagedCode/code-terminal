@@ -1,5 +1,6 @@
 // The page: a tab bar of open checkouts over the active checkout's split layout.
 // Route state is `?project=<name>[&worktree=<name>]`; layouts persist per checkout on the backend.
+// code-conductor's row menus arrive as `?ccProject=&ccWorktree=` and are turned into that route.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api';
 import { availabilityNote, checkoutKey, checkoutLabel, checkoutPresence, goneReason, sameCheckout, type Checkout } from './checkout';
@@ -7,6 +8,7 @@ import { ConfirmDialog } from './dialog/ConfirmDialog';
 import { SplitView } from './layout/SplitView';
 import { close, focusAfterClose, newPane, panes, setRatio, split, updatePane, type Pane, type SplitDir } from './layout/tree';
 import { useLayouts } from './layout/useLayouts';
+import { useMenuTarget } from './menu/useMenuTarget';
 import { CheckoutPicker } from './picker/CheckoutPicker';
 import { useSessions } from './sessions/useSessions';
 import { TabBar } from './tabs/TabBar';
@@ -168,15 +170,29 @@ export function App() {
   const closeTab = (index: number) => { const c = tabs.open[index]; if (c) void requestClose([c]); };
   const closeOthers = (index: number) => { void requestClose(tabs.open.filter((_, i) => i !== index)); };
 
-  const pick = useCallback(async (c: Checkout) => {
+  // `list` is the listing to judge availability by; the menu passes a fresher one than the closure's.
+  const pick = useCallback(async (c: Checkout, list: ProjectInfo[] | null = projects) => {
     dispatch({ type: 'open', checkout: c });
     try {
       const tree = await ensureLayout(c);
-      const presence = checkoutPresence(projects, c);
+      const presence = checkoutPresence(list, c);
       const blocked = presence.kind === 'present' && presence.project.terminal.state === 'unavailable';
       if (tree === null && isOpen(c) && !blocked) await newShell(c);
     } catch (e) { report(e); }
   }, [dispatch, ensureLayout, projects, isOpen, newShell, report]);
+
+  const refreshProjects = useCallback(async () => {
+    const list = await api.listProjects();
+    setProjects(list);
+    setProjectsError(null);
+    return list;
+  }, []);
+  useMenuTarget({
+    active: () => tabsRef.current.open[tabsRef.current.active] ?? null,
+    refresh: refreshProjects,
+    open: (c, list) => void pick(c, list),
+    report: (m) => setNotice(m),
+  });
 
   const openPicker = () => { setPickerOpen(true); void loadProjects(false); };
 

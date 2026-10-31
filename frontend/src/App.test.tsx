@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Pane } from './layout/tree';
 
 // The pane's own behaviour is TerminalPane.test.tsx's; here it only needs a Close and a name.
@@ -39,7 +39,9 @@ const info = (id: string, ordinal: number, worktree: string | null = null, kind 
 
 type Call = { url: string; init: RequestInit };
 type HostOpts = {
-  projects?: unknown[];
+  // A function is asked on every listing, so a later listing can differ (or resolve late).
+  projects?: unknown[] | (() => unknown[] | Promise<unknown[]>);
+  projectsStatus?: () => number;
   // Layout answers by URL; anything else is the empty layout.
   layouts?: Record<string, unknown>;
   listed?: unknown[];
@@ -53,7 +55,12 @@ function host(o: HostOpts = {}) {
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init });
     const method = init.method ?? 'GET';
-    if (url === 'api/projects') return json(200, { projects: o.projects ?? [project('alpha', ['feat'])] });
+    if (url === 'api/projects') {
+      const status = o.projectsStatus?.() ?? 200;
+      if (status !== 200) return json(status, { code: 'HOST_UNREACHABLE', error: 'code-conductor is unreachable' });
+      const list = typeof o.projects === 'function' ? await o.projects() : o.projects;
+      return json(200, { projects: list ?? [project('alpha', ['feat'])] });
+    }
     if (url.startsWith('api/layouts/') && method === 'GET') return json(200, { tree: o.layouts?.[url] ?? null });
     if (url === 'api/sessions' && method === 'GET') return json(200, { sessions: o.listed ?? [] });
     if (url === 'api/sessions' && method === 'POST') return json(201, { id: o.create ? await o.create() : NEW });
@@ -364,4 +371,119 @@ test('the picker reloads the project listing each time it opens', async () => {
   const before = count();
   fireEvent.click(screen.getByRole('button', { name: 'Open checkout' }));
   await waitFor(() => expect(count()).toBe(before + 1));
+});
+
+// Code-conductor's row menu: `?ccProject=&ccWorktree=` on load, or after cc's navigate + a popstate.
+const posts = (calls: Call[]) => calls.filter((c) => c.url === 'api/sessions' && c.init.method === 'POST');
+const navigate = (search: string) => act(() => {
+  history.replaceState(null, '', search);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+});
+const selected = (name: string) => screen.getByRole('tab', { name }).getAttribute('aria-selected') === 'true';
+
+// Invariant: the worktree item opens that checkout, and one shell in it when it is empty; the URL becomes the tab route.
+test('menu: ?ccProject&ccWorktree selects that checkout, opens one shell in it and rewrites the URL to the tab route', async () => {
+  const calls = host();
+  at('?ccProject=alpha&ccWorktree=feat');
+  render(<App />);
+  await waitFor(() => expect(posts(calls).length).toBe(1));
+  expect(JSON.parse(posts(calls)[0].init.body as string)).toMatchObject({ project: 'alpha', worktree: 'feat' });
+  await waitFor(() => expect(selected('alpha/feat')).toBe(true));
+  expect(location.search).toBe('?project=alpha&worktree=feat');
+});
+
+// Invariant: project scope opens the main checkout.
+test('menu: ?ccProject alone opens the project\'s main checkout', async () => {
+  const calls = host();
+  at('?ccProject=alpha');
+  render(<App />);
+  await waitFor(() => expect(posts(calls).length).toBe(1));
+  expect(JSON.parse(posts(calls)[0].init.body as string)).toMatchObject({ project: 'alpha', worktree: null });
+  await waitFor(() => expect(selected('alpha')).toBe(true));
+});
+
+// Invariant: an open tab is activated, never duplicated, and a checkout with a layout gets no extra shell.
+test('menu: an already open checkout is reused and gets no extra shell', async () => {
+  localStorage.setItem('code-terminal:tabs', JSON.stringify({ open: [{ project: 'alpha', worktree: null }, { project: 'alpha', worktree: 'feat' }], active: 0 }));
+  const calls = host({ layouts: { 'api/layouts/alpha?worktree=feat': p2 } });
+  at('?ccProject=alpha&ccWorktree=feat');
+  render(<App />);
+  expect(await screen.findByRole('region', { name: 'pane p2' })).toBeTruthy();
+  expect(screen.getAllByRole('tab').length).toBe(2);
+  expect(selected('alpha/feat')).toBe(true);
+  expect(posts(calls)).toEqual([]);
+});
+
+// Invariant: an already-open page retargets in place on cc's navigate, judged by a fresh listing.
+test('menu: a popstate with cc params retargets without a remount, using a fresh listing', async () => {
+  let n = 0;
+  const calls = host({
+    projects: () => [project('alpha', n++ === 0 ? ['feat'] : ['feat', 'new'])],
+    layouts: { 'api/layouts/alpha': p1, 'api/layouts/alpha?worktree=new': p2 },
+  });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  const before = calls.filter((c) => c.url === 'api/projects').length;
+  navigate('?ccProject=alpha&ccWorktree=new');
+  await screen.findByRole('region', { name: 'pane p2' });
+  expect(calls.filter((c) => c.url === 'api/projects').length).toBe(before + 1);
+  expect(selected('alpha/new')).toBe(true);
+  expect(location.search).toBe('?project=alpha&worktree=new');
+});
+
+// Invariant: the latest target wins; a stale listing never retargets.
+test('menu: when an older target\'s listing resolves last, only the newer target opens', async () => {
+  const gates: Array<() => void> = [];
+  let n = 0;
+  host({
+    projects: () => {
+      const i = n++;
+      if (i === 0) return [project('alpha', ['one', 'two'])];
+      return new Promise((r) => { gates[i] = () => r([project('alpha', ['one', 'two'])]); });
+    },
+    layouts: { 'api/layouts/alpha': p1, 'api/layouts/alpha?worktree=one': p1, 'api/layouts/alpha?worktree=two': p2 },
+  });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  navigate('?ccProject=alpha&ccWorktree=one');
+  navigate('?ccProject=alpha&ccWorktree=two');
+  await act(async () => { gates[2](); gates[1](); });
+  await screen.findByRole('region', { name: 'pane p2' });
+  expect(screen.queryByRole('tab', { name: 'alpha/one' })).toBeNull();
+  expect(selected('alpha/two')).toBe(true);
+});
+
+// Invariant: untrusted names are validated before any use, shown only as text, and the default view stays.
+test.each([
+  ['an unknown project', '?ccProject=ghost', 'ghost'],
+  ['an unknown worktree', '?ccProject=alpha&ccWorktree=ghost', 'ghost'],
+  ['a worktree without a project', '?ccWorktree=feat', ''],
+  ['markup in the name', `?ccProject=${encodeURIComponent('<img src=x onerror=alert(1)>')}`, '<img src=x onerror=alert(1)>'],
+])('menu: %s alerts, keeps the tabs and builds no request from the name', async (_n, search, name) => {
+  localStorage.setItem('code-terminal:tabs', JSON.stringify({ open: [{ project: 'alpha', worktree: null }], active: 0 }));
+  const calls = host({ layouts: { 'api/layouts/alpha': p1 } });
+  at(search);
+  render(<App />);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toContain(name);
+  expect(document.querySelector('img')).toBeNull();
+  expect(screen.getAllByRole('tab').length).toBe(1);
+  expect(selected('alpha')).toBe(true);
+  expect(posts(calls)).toEqual([]);
+  if (name) expect(calls.filter((c) => c.url.includes('ghost') || c.url.includes('img'))).toEqual([]);
+});
+
+// Invariant: a failed check is a visible, safe failure.
+test('menu: a failing listing alerts and leaves the tabs alone', async () => {
+  localStorage.setItem('code-terminal:tabs', JSON.stringify({ open: [{ project: 'alpha', worktree: null }], active: 0 }));
+  let n = 0;
+  host({ projectsStatus: () => (n++ === 0 ? 200 : 500), layouts: { 'api/layouts/alpha': p1 } });
+  at('?project=alpha');
+  render(<App />);
+  await screen.findByRole('region', { name: 'pane p1' });
+  navigate('?ccProject=alpha&ccWorktree=feat');
+  expect((await screen.findByRole('alert')).textContent).toMatch(/unreachable/);
+  expect(screen.getAllByRole('tab').length).toBe(1);
 });

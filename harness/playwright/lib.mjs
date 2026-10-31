@@ -82,8 +82,19 @@ export async function waitUnwrapped(pane, pattern, what = String(pattern), ms) {
 // Types a line into `pane`'s terminal.
 export async function typeLine(page, pane, text) {
   await pane.locator('.pane-terminal').click();
+  // A menu that just closed hands focus back to its trigger; keys typed before the terminal has it go astray.
+  const input = pane.locator('textarea.xterm-helper-textarea');
+  await until(() => input.evaluate((el) => el === el.ownerDocument.activeElement && el.ownerDocument.hasFocus()), 'the terminal to have focus');
   await page.keyboard.type(text);
   await page.keyboard.press('Enter');
+}
+
+// The pane's working directory name, read from the shell itself. `page` is the real Page (its keyboard
+// types into the focused frame); `pane` may come from a frame locator.
+export async function cwdName(page, pane) {
+  const tag = `CWD${Math.random().toString(36).slice(2, 7)}`;
+  await typeLine(page, pane, `echo ${tag}=$(basename "$PWD")=`);
+  return (await waitText(pane, new RegExp(`${tag}=([A-Za-z0-9._-]+)=`), `${tag} cwd`))[1];
 }
 
 // The pane's own `stty size`, compared by the caller with its data-rows/data-cols.
