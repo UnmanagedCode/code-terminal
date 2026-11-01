@@ -127,6 +127,57 @@ describe('capsPlaceholder', () => {
     expect(ta.value).toBe(P);
   });
 
+  test('a contextmenu on the terminal element alone reseeds the emptied field, with no focus event', () => {
+    vi.spyOn(ta, 'focus').mockImplementation(() => {});
+    const focused = vi.fn();
+    ta.addEventListener('focus', focused);
+    ta.value = '';
+    t.element!.dispatchEvent(new Event('contextmenu', { bubbles: true }));
+    flush();
+    expect(focused).not.toHaveBeenCalled();
+    expect(ta.value).toBe(P);
+  });
+
+  test('a DEL xterm sent for typed text does not suppress the guard for a later no-keydown placeholder deletion', () => {
+    type229('a'); flush();
+    del229(); flush();
+    expect(sent()).toBe('a\x7f');
+    bytes.length = 0;
+    delNoKeydown(); flush();
+    expect(sent()).toBe('\x7f');
+  });
+
+  test('a placeholder deletion is forgotten at the next settle: a later blur-emptied field sends no DEL', () => {
+    delNoKeydown(); flush();
+    expect(sent()).toBe('\x7f');
+    bytes.length = 0;
+    fire('blur'); flush();
+    expect(sent()).toBe('');
+    expect(ta.value).toBe(P);
+  });
+
+  test('a real Backspace DEL seen before a composition does not swallow the DEL for a placeholder deleted inside it', () => {
+    key(8);
+    fire('compositionstart', { data: '' });
+    fire('beforeinput', { inputType: 'deleteContentBackward' });
+    ta.value = '';
+    fire('input', { inputType: 'deleteContentBackward', composed: true });
+    flush();
+    fire('compositionend', { data: '' });
+    flush();
+    expect(bytes).toEqual(['\x7f', '\x7f']);
+    expect(ta.value).toBe(P);
+  });
+
+  test('a composition cancelled by blur without compositionend does not stop later reseeds', () => {
+    fire('compositionstart', { data: '' });
+    fire('blur');
+    flush();
+    expect(ta.value).toBe(P);
+    key(13); flush();
+    expect(ta.value).toBe(P);
+  });
+
   test('a character typed right after Enter, before any timer flushes, is exactly that character', () => {
     key(13);
     type229('a');

@@ -14,16 +14,18 @@ import './page.css';
 
 const CANDIDATES: Record<string, string | null> = { x: PLACEHOLDER, '200b': '​', none: null };
 const choice = new URLSearchParams(location.search).get('p') ?? 'x';
-const candidate = choice in CANDIDATES ? CANDIDATES[choice] : PLACEHOLDER;
+const candidate = Object.hasOwn(CANDIDATES, choice) ? CANDIDATES[choice] : PLACEHOLDER;
+// Only an untypable placeholder can be told from typed text in the log.
+const highlight = candidate !== null && !/^[\x20-\x7e]$/.test(candidate);
 
 const CHECKLIST = [
   '?p=none: type ls. The log shows L then s (the bug).',
-  '?p=x: at a fresh prompt type ls. The log shows l, s. After Enter the next first letter is lowercase. After switching apps and back, the first letter is lowercase.',
+  '?p=x: at a fresh prompt type ls. The log shows l, s, with no extra x (compare the log with what you typed). After Enter the next first letter is lowercase. After switching apps and back, the first letter is lowercase.',
   'Backspace: type abc, then 3 × Backspace logs 3 × \\x7f. A 4th Backspace (on the placeholder) logs exactly one \\x7f, a 5th another. Holding Backspace never logs doubles or stops.',
-  'Swipe a word, tap a prediction, use voice input: the log holds the word and never the placeholder. Note what the prediction strip shows.',
+  'Swipe a word, tap a prediction, use voice input: the log holds the word and no stray placeholder (compare with what you typed). Note what the prediction strip shows.',
   'Bar Ctrl then soft-keyboard c logs \\x03. Long-press paste logs the pasted text only.',
   'Autocorrect on space: at a fresh prompt type a misspelled first word and a space (gti status), then a correctly spelled one (ls ). SwiftKey sees the placeholder as part of the first word, so it may rewrite it on space. The log must show exactly what was sent; note any rewrite or stray placeholder.',
-  'Repeat all of the above with ?p=200b. If caps stay off, predictions show only the typed word and autocorrect on space leaves the first word alone, prefer U+200B (one constant in capsPlaceholder.ts, plus docs and wiki).',
+  '?p=200b is a diagnostic only: U+200B was device-tested and does not stop SwiftKey capitalizing; the shipped placeholder is x.',
 ];
 
 const esc = (s: string) => Array.from(s, (c) => {
@@ -33,7 +35,7 @@ const esc = (s: string) => Array.from(s, (c) => {
 }).join('');
 
 function Marked({ text }: { text: string }) {
-  if (!candidate) return <>{esc(text)}</>;
+  if (!candidate || !highlight) return <>{esc(text)}</>;
   return <>{text.split(candidate).flatMap((part, i) => (i === 0 ? [esc(part)] : [<mark key={i}>{esc(candidate)}</mark>, esc(part)]))}</>;
 }
 

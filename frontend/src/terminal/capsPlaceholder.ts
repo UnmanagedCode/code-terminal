@@ -1,5 +1,7 @@
 // Keeps a placeholder before the cursor in xterm's helper textarea so soft keyboards
 // that ignore autocapitalize (SwiftKey) never see an empty, sentence-start field.
+// Typing, deletion, Enter, paste and composition never send the placeholder; an IME rewrite of
+// the first word (e.g. recapitalizing `xls`) can include it.
 //
 // xterm turns Android typing into diffs of the textarea's value (keyCode 229 keydown, then a
 // `setTimeout(0)` re-read), so a placeholder already in the field never reaches the pty. The
@@ -16,7 +18,7 @@ const DEL = '\x7f';
 
 type Host = Pick<Terminal, 'textarea' | 'element' | 'onData' | 'onSelectionChange' | 'input'>;
 
-// Call after `open()`. Returns the detach function, which also empties the field again.
+// Call after `open()`. Returns the detach function, which also empties the field if it holds exactly the placeholder.
 export function attachCapsPlaceholder(t: Host, placeholder = PLACEHOLDER): () => void {
   const { textarea, element } = t;
   if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
@@ -50,14 +52,18 @@ export function attachCapsPlaceholder(t: Host, placeholder = PLACEHOLDER): () =>
     [textarea, 'keydown', schedule, true],
     [textarea, 'beforeinput', () => { before = textarea.value; }, true],
     [textarea, 'input', () => {
-      if (before === placeholder && textarea.value === '') ateP = true;
+      if (before === placeholder && textarea.value === '') {
+        ateP = true;
+        sawDel = false; // a DEL seen before this deletion is not the one for the placeholder
+      }
       schedule();
     }, true],
     [textarea, 'compositionstart', () => { composing = true; }, false],
     [textarea, 'compositionend', () => { composing = false; schedule(); }, false],
     [textarea, 'paste', schedule, false],
     [textarea, 'focus', schedule, false],
-    [textarea, 'blur', schedule, false],
+    // An IME may cancel a composition on blur without `compositionend`; stuck state would stop every reseed.
+    [textarea, 'blur', () => { composing = false; schedule(); }, false],
     [element, 'contextmenu', schedule, false],
   ];
   for (const [target, type, fn, capture] of listeners) target.addEventListener(type, fn, capture);
