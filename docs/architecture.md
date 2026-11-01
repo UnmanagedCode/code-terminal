@@ -98,10 +98,14 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | `api.ts` | REST calls; relative URLs; JSON content type on every mutation; layout saves and kills use `keepalive` so they outlive an unload |
 | `layout/tree.ts` | pure tree operations (`split`, `close`, `focusAfterClose`, `setRatio`, `updatePane`); validator from `shared/layout.js` |
 | `layout/SplitView.tsx` | recursive render; divider drag via CSSOM `flex-basis` |
-| `terminal/TerminalPane.tsx` | xterm lifecycle (fit + web-links addons), header, states, Restart, link tooltip |
+| `terminal/TerminalPane.tsx` | xterm lifecycle (fit + web-links addons), header, states, Restart, link tooltip; `onData` runs through the pane's `Modifiers.apply` before `sendInput`; bar keys enter through `term.input` |
 | `terminal/socket.ts` | the attach socket; backoff reattach; asks `GET api/sessions` whether a dropped session still exists |
 | `terminal/links.ts` | the link policy for web links and OSC 8 |
 | `terminal/keys.ts` | Ctrl+Shift+C/V |
+| `terminal/extraKeys.ts` | the bar's catalog (`EXTRA_KEYS`), `keySequence`, pure `applyModifiers`, the `Modifiers` state machine (injectable clock) |
+| `terminal/softKeyboard.ts` | `disableTextAssist` on xterm's helper textarea |
+| `terminal/useTouchDevice.ts` | `(hover: none)` via `useSyncExternalStore` |
+| `terminal/ExtraKeys.tsx` | the bar; `pointerdown` is prevented so focus stays, the action fires on `click` |
 | `terminal/theme.ts` | host tokens → hex via a one-pixel canvas (xterm cannot parse oklch); follows theme flips |
 
 ## Tests
@@ -112,7 +116,7 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | shell history | `tests/shell-history.test.mjs` | in the backend suite | real `bash`/`zsh` from PATH over pipes, temp HOME with hostile dotfiles; skips a shell that is absent |
 | frontend | `frontend/src/**/*.test.ts(x)` | `npm run test:web` | vitest + happy-dom; xterm is mocked in `TerminalPane.test.tsx`; `palette.test.ts` pins cc's tokens |
 | real cc | `tests/integration/*.test.mjs` | `RUN_REAL_CC=1 npm run test:server` | skipped otherwise; each file boots its own scratch cc |
-| visual | `harness/playwright/scenarios/*.mjs` (`split`, `reload`, `history`, `untrusted-output`, `tabs`, `menu`) | `node harness/playwright/run.mjs [scenario…]` | needs `CC_PROJECTS_ROOT`; fails on any CSP violation, page error or dialog; screenshots in `harness/playwright/out/` |
+| visual | `harness/playwright/scenarios/*.mjs` (`split`, `reload`, `history`, `untrusted-output`, `tabs`, `menu`, `mobile`) | `node harness/playwright/run.mjs [scenario…]` | needs `CC_PROJECTS_ROOT`; a scenario may export `contextOptions`, merged into `newContext` (`mobile` uses a 360×740 touch viewport); fails on any CSP violation, page error or dialog; screenshots in `harness/playwright/out/` |
 
 - **Scratch cc** (`harness/scratch-cc.mjs`): `git clone --no-hardlinks` of `$CC_PROJECTS_ROOT/code-conductor`, checked out at `CC_COMMIT` (which must understand every manifest key the plugin uses: cc rejects unknown top-level keys), `node_modules` symlinked; started by its `scripts/run-isolated.sh` with a free port, its own root and a temp `HOME` in a sanitized environment; this worktree's tracked and unignored files copied into a fresh repo, built, adopted, enabled and started; projects `alpha` and `beta` created. `createWorktree` makes a worktree through cc's MCP `create_worktree`. `addProviderProject` registers a System launched with cc's `referenceProvider.ts` (optionally `--no-pty`). Teardown stops the plugin and kills only the cc pid whose `/proc` cwd and environment prove it is the scratch one (or, once cc is gone, the plugin process group whose cwd is the scratch copy). `KEEP_SCRATCH=1` keeps the temp dir.
 - **Manifest:** `tests/manifest.test.mjs` pins `menuItems`; the real-cc test `tests/integration/local.test.mjs` has cc's own validator accept the manifest. The `menu` scenario clicks cc's real row menus and checks the frame is not reloaded.

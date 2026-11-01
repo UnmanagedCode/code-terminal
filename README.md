@@ -10,6 +10,7 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin:
 - Per-project shell history for bash and zsh, shared live between a project's shells.
 - Shells live in the plugin backend: a browser reload reattaches and replays screen and scrollback.
 - "Open terminal" in cc's project and worktree `⋮` menus opens (or reuses) that checkout's tab.
+- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane; the soft keyboard's autocapitalize and autocorrect are off.
 - Projects on a System without terminal support are shown disabled with cc's reason.
 
 Details: [docs/features.md](docs/features.md).
@@ -52,7 +53,7 @@ Internals: [docs/architecture.md](docs/architecture.md).
 | `npm run typecheck` | `tsc -p frontend` |
 | `npm test` | backend (`node --test "tests/**/*.test.mjs"`) then frontend (`vitest run --config frontend/vitest.config.ts`) |
 | `RUN_REAL_CC=1 npm run test:server` | also runs `tests/integration/` against scratch ccs (needs `CC_PROJECTS_ROOT`) |
-| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output\|tabs\|menu]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
+| `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output\|tabs\|menu\|mobile]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
 | `node harness/playwright/screenshot.mjs [out.png]` | screenshot of the standalone page |
 
 ## Verification harnesses
@@ -65,6 +66,7 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 ## Known limitations
 
 - Ctrl/⌘+1…9 switch tabs only while focus is inside the plugin's frame, and never reach the shell.
+- Browsers that ignore `interactive-widget=resizes-content` (iOS Safari) overlay the soft keyboard instead of resizing the page, so it can cover the extra-keys bar.
 - Shells do not survive a restart of the plugin backend, of cc, or of a remote System's provider: their panes show `ended` with **Restart**.
 - bash runs as an interactive shell that loads the login files itself, not as `bash -l` (a login bash never reads an init file, which per-project history needs).
 - The history guarantees cover bash and zsh only; another login shell gets `HISTFILE` and may ignore it.

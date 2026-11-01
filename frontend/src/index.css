@@ -225,6 +225,31 @@ button, select { font: inherit; }
   pointer-events: none;
 }
 
+/* Extra keys */
+.extra-keys {
+  display: flex;
+  flex: none;
+  height: 2.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 0.8125rem;
+}
+.extra-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) - 0.25rem);
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.extra-key[data-mod-state='once'] { background: var(--accent); color: var(--accent-foreground); }
+.extra-key[data-mod-state='locked'] { background: var(--primary); color: var(--primary-foreground); }
+
 /* Banner (a checkout that is gone; shells no pane shows) */
 .banner {
   display: flex;
