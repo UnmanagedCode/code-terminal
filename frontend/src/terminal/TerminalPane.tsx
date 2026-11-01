@@ -10,10 +10,14 @@ import { createSession } from '../api';
 import { checkoutLabel, type Checkout } from '../checkout';
 import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
+import { ExtraKeys } from './ExtraKeys';
+import { keySequence, Modifiers, type ExtraKeyId } from './extraKeys';
 import { attachClipboardKeys } from './keys';
 import { activateLink, linkTip, type LinkTip } from './links';
 import { connectSession, type ConnState, type Connection } from './socket';
+import { disableTextAssist } from './softKeyboard';
 import { onThemeChange, terminalTheme, TERMINAL_FONT } from './theme';
+import { useTouchDevice } from './useTouchDevice';
 
 
 type Props = {
@@ -53,6 +57,8 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
   const [size, setSize] = useState({ cols: 0, rows: 0 });
   const [restartError, setRestartError] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [mods] = useState(() => new Modifiers());
+  const touch = useTouchDevice();
 
   useEffect(() => {
     const sessionId = pane.sessionId;
@@ -83,12 +89,13 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       setSize({ cols: t.cols, rows: t.rows });
       return { cols: t.cols, rows: t.rows };
     };
-    t.onData((d) => conn.current?.sendInput(d));
+    t.onData((d) => conn.current?.sendInput(mods.apply(d)));
     t.onBinary((d) => conn.current?.sendInput(Uint8Array.from(d, (c) => c.charCodeAt(0))));
     t.onTitleChange((s) => setTitle(clampTitle(s)));
     void fontsReady().then(() => {
       if (disposed || !host.current) return;
       t.open(host.current);
+      disableTextAssist(t.textarea);
       const s = measure();
       last = `${s.cols}x${s.rows}`;
       conn.current = connectSession(sessionId, () => ({ cols: t.cols, rows: t.rows }), {
@@ -120,11 +127,21 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       t.dispose();
       term.current = null;
     };
-  }, [pane.sessionId]);
+  }, [pane.sessionId, mods]);
 
   useEffect(() => {
     if (focused) term.current?.focus();
   }, [focused, state.kind]);
+
+  function sendExtraKey(id: ExtraKeyId) {
+    onFocus();
+    if (id === 'ctrl' || id === 'alt') {
+      mods.tap(id);
+      return;
+    }
+    const t = term.current;
+    if (t?.element) t.input(keySequence(id, t.modes.applicationCursorKeysMode));
+  }
 
   async function restart() {
     setRestarting(true);
@@ -177,6 +194,7 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
         )}
         {tip && <div className="link-tip" role="tooltip" style={{ left: tip.x + 12, top: tip.y + 12 }}>{tip.text}</div>}
       </div>
+      {touch && <ExtraKeys mods={mods} onKey={sendExtraKey} />}
     </section>
   );
 }

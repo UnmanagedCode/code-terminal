@@ -95,6 +95,20 @@
 | zsh | yes | login shell; a `ZDOTDIR` wrapper sources the user's files, then pins history and gives `ZDOTDIR` back |
 | any other | no | cc's default login shell with `HISTFILE` set; the shell may ignore it |
 
+## Touch devices
+
+- **Gate:** the bar renders only when `matchMedia('(hover: none)')` matches (`TOUCH_QUERY` in `useTouchDevice.ts`), and follows changes live. Desktop never has it in the DOM.
+- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea. xterm already sets the first, second and fourth itself; in practice this adds `autocomplete=off`. It is not a verified fix for phones capitalizing input.
+- **Bar** (`role="toolbar"`, "Extra keys", under each pane; keys from `EXTRA_KEYS`): Esc, Tab, Ctrl, Alt, `~ | / -`, ← ↑ ↓ →.
+- **Focus:** a tap never blurs the terminal (the soft keyboard stays up) and focuses the tapped pane.
+- **Ctrl/Alt:** one tap arms the next key (one-shot); a second tap within `DOUBLE_TAP_MS` locks it; tapping a locked or armed-but-slow modifier clears it. Armed state shows as `aria-pressed` and `data-mod-state` (`once`/`locked`). They apply to bar keys and to characters typed on the soft keyboard.
+- **Bytes:**
+  - Ctrl: `a–z`/`A–Z`/`@[\]^_` → `code & 0x1f`, space → `\x00`, `?` → `\x7f`; other characters unchanged.
+  - Alt: prefixes ESC.
+  - Arrows: `\x1b[X` normally, `\x1bOX` in application-cursor mode (read at tap time); with Ctrl/Alt `\x1b[1;<m>X`, m = 1 + 2·alt + 4·ctrl, in either mode.
+  - Terminal reports (ESC-led, non-arrow) pass through unmodified and do not consume an armed modifier.
+- **Keyboard resize:** relies on `interactive-widget=resizes-content` (set by cc's host page and the plugin's `index.html`); the pane refits and resizes the pty.
+
 ## Theme
 
 - Background, foreground, cursor and selection follow cc's light/dark tokens live; the 16 ANSI colours are xterm's defaults. 256-colour and truecolor output render.

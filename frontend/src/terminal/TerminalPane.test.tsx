@@ -1,13 +1,25 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ConnHandlers, ConnState } from './socket';
+
+const termModes = { applicationCursorKeysMode: false };
+const termInput = vi.fn((d: string) => dataListener?.(d));
+let dataListener: ((d: string) => void) | null = null;
 
 // xterm needs a real layout engine; the pane's contract is tested against stand-ins.
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80; rows = 24; options: Record<string, unknown> = {};
-    loadAddon() {} open() {} write() {} reset() {} dispose() {} focus() {}
-    onData() { return { dispose() {} }; } onBinary() { return { dispose() {} }; }
+    modes = termModes; element: HTMLElement | undefined; textarea: HTMLTextAreaElement | undefined;
+    loadAddon() {} write() {} reset() {} dispose() {} focus() {}
+    open(el: HTMLElement) {
+      this.element = el;
+      this.textarea = document.createElement('textarea');
+      this.textarea.className = 'xterm-helper-textarea';
+      el.appendChild(this.textarea);
+    }
+    input = termInput;
+    onData(fn: (d: string) => void) { dataListener = fn; return { dispose() {} }; } onBinary() { return { dispose() {} }; }
     onTitleChange(fn: (t: string) => void) { titleListener = fn; return { dispose() {} }; }
     attachCustomKeyEventHandler() {} getSelection() { return ''; } hasSelection() { return false; } paste() {}
   },
@@ -18,17 +30,39 @@ vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class {} }));
 let handlers: ConnHandlers | null = null;
 let titleListener: ((t: string) => void) | null = null;
 const reattach = vi.fn();
+const sendInput = vi.fn();
 vi.mock('./socket', () => ({
-  connectSession: (_id: string, _size: unknown, h: ConnHandlers) => { handlers = h; return { sendInput() {}, resize() {}, close() {}, reattach }; },
+  connectSession: (_id: string, _size: unknown, h: ConnHandlers) => { handlers = h; return { sendInput, resize() {}, close() {}, reattach }; },
 }));
 
 const { TerminalPane } = await import('./TerminalPane');
+const { EXTRA_KEYS } = await import('./extraKeys');
 const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
 const fetchMock = vi.fn();
+
+const mqlListeners = new Set<() => void>();
+let mqlMatches = false;
+const matchMediaMock = vi.fn((_q: string) => ({
+  get matches() { return mqlMatches; },
+  addEventListener: (_t: string, fn: () => void) => { mqlListeners.add(fn); },
+  removeEventListener: (_t: string, fn: () => void) => { mqlListeners.delete(fn); },
+}));
+function stubMatchMedia(matches: boolean) {
+  mqlMatches = matches;
+  mqlListeners.clear();
+  matchMediaMock.mockClear();
+  vi.stubGlobal('matchMedia', matchMediaMock);
+}
+
 beforeEach(() => {
   handlers = null;
   titleListener = null;
+  dataListener = null;
+  termModes.applicationCursorKeysMode = false;
+  sendInput.mockClear();
+  termInput.mockClear();
+  stubMatchMedia(false);
   reattach.mockClear();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
@@ -38,8 +72,8 @@ afterEach(() => vi.unstubAllGlobals());
 
 const pane = { kind: 'pane' as const, id: 'p1', sessionId: '0b7c1f5e-3c1a-4c1e-9d2a-1f2e3d4c5b6a' };
 
-function renderPane(onSessionReplaced = vi.fn()) {
-  render(<TerminalPane checkout={{ project: 'alpha', worktree: 'feature' }} pane={pane} focused onFocus={() => {}} onSplit={() => {}} onClose={() => {}} onSessionReplaced={onSessionReplaced} />);
+function renderPane(onSessionReplaced = vi.fn(), onFocus: () => void = () => {}) {
+  render(<TerminalPane checkout={{ project: 'alpha', worktree: 'feature' }} pane={pane} focused onFocus={onFocus} onSplit={() => {}} onClose={() => {}} onSessionReplaced={onSessionReplaced} />);
   return onSessionReplaced;
 }
 
@@ -108,5 +142,115 @@ describe('TerminalPane', () => {
     expect(screen.getByText('t'.repeat(TITLE_MAX_CHARS))).toBeTruthy();
     act(() => handlers!.onHello({ kind: 'running' }, 'h'.repeat(TITLE_MAX_CHARS + 1)));
     expect(screen.getByText('h'.repeat(TITLE_MAX_CHARS))).toBeTruthy();
+  });
+
+  describe('mobile input', () => {
+    const bar = () => screen.queryByRole('toolbar', { name: 'Extra keys' });
+    const key = (name: string) => screen.getByRole('button', { name });
+    async function renderTouch(onFocus?: () => void) {
+      stubMatchMedia(true);
+      renderPane(vi.fn(), onFocus);
+      await waitFor(() => expect(document.querySelector('.xterm-helper-textarea')).not.toBeNull());
+    }
+    const type = (d: string) => act(() => dataListener!(d));
+
+    test("the textarea's text assistance is off on every terminal, regardless of touch", async () => {
+      renderPane();
+      await waitFor(() => expect(document.querySelector('.xterm-helper-textarea')).not.toBeNull());
+      const ta = document.querySelector('.xterm-helper-textarea')!;
+      expect(['autocapitalize', 'autocorrect', 'autocomplete', 'spellcheck'].map((a) => ta.getAttribute(a))).toEqual(['off', 'off', 'off', 'false']);
+    });
+
+    test('the bar is touch-only: gated on (hover: none), one button per catalog key', async () => {
+      renderPane();
+      await waitFor(() => expect(matchMediaMock).toHaveBeenCalled());
+      expect(matchMediaMock.mock.calls.every(([q]) => q === '(hover: none)')).toBe(true);
+      expect(bar()).toBeNull();
+      cleanup();
+      await renderTouch();
+      expect(bar()).toBeTruthy();
+      for (const k of EXTRA_KEYS) expect(key(k.name)).toBeTruthy();
+      expect(screen.getAllByRole('button').filter((b) => b.closest('.extra-keys'))).toHaveLength(EXTRA_KEYS.length);
+    });
+
+    test('the gate follows the media query live', async () => {
+      renderPane();
+      expect(bar()).toBeNull();
+      mqlMatches = true;
+      act(() => mqlListeners.forEach((f) => f()));
+      expect(bar()).toBeTruthy();
+      mqlMatches = false;
+      act(() => mqlListeners.forEach((f) => f()));
+      expect(bar()).toBeNull();
+    });
+
+    test('a bar tap does not blur: pointerdown is default-prevented', async () => {
+      await renderTouch();
+      expect(fireEvent.pointerDown(key('Up arrow'))).toBe(false);
+      expect(fireEvent.pointerDown(key('Control'))).toBe(false);
+    });
+
+    test('bar keys go through the typed-input path and honour the cursor mode at tap time', async () => {
+      await renderTouch();
+      await waitFor(() => expect(handlers).not.toBeNull());
+      fireEvent.click(key('Up arrow'));
+      expect(termInput).toHaveBeenLastCalledWith('\x1b[A');
+      expect(sendInput).toHaveBeenLastCalledWith('\x1b[A');
+      termModes.applicationCursorKeysMode = true;
+      fireEvent.click(key('Up arrow'));
+      expect(termInput).toHaveBeenLastCalledWith('\x1bOA');
+      expect(sendInput).toHaveBeenLastCalledWith('\x1bOA');
+    });
+
+    test('a one-shot Ctrl modifies the next typed character, then clears, visibly', async () => {
+      await renderTouch();
+      fireEvent.click(key('Control'));
+      expect(key('Control').getAttribute('aria-pressed')).toBe('true');
+      type('c');
+      expect(sendInput).toHaveBeenLastCalledWith('\x03');
+      expect(key('Control').getAttribute('aria-pressed')).toBe('false');
+      type('c');
+      expect(sendInput).toHaveBeenLastCalledWith('c');
+    });
+
+    test('a double-tap locks Ctrl visibly until tapped again', async () => {
+      const now = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(100).mockReturnValue(1000);
+      await renderTouch();
+      fireEvent.click(key('Control'));
+      fireEvent.click(key('Control'));
+      expect(key('Control').getAttribute('data-mod-state')).toBe('locked');
+      type('a'); type('b');
+      expect(sendInput.mock.calls.map((c) => c[0])).toEqual(['\x01', '\x02']);
+      expect(key('Control').getAttribute('aria-pressed')).toBe('true');
+      fireEvent.click(key('Control'));
+      expect(key('Control').getAttribute('data-mod-state')).toBe('off');
+      now.mockRestore();
+    });
+
+    test('Alt applies to a bar key', async () => {
+      await renderTouch();
+      fireEvent.click(key('Alt'));
+      fireEvent.click(key('Escape'));
+      expect(sendInput).toHaveBeenLastCalledWith('\x1b\x1b');
+    });
+
+    test('a bar tap focuses its pane', async () => {
+      const onFocus = vi.fn();
+      await renderTouch(onFocus);
+      onFocus.mockClear();
+      fireEvent.click(key('Tab'));
+      expect(onFocus).toHaveBeenCalledTimes(1);
+      fireEvent.click(key('Control'));
+      expect(onFocus).toHaveBeenCalledTimes(2);
+      fireEvent.click(key('Alt'));
+      expect(onFocus).toHaveBeenCalledTimes(3);
+    });
+
+    test('without the bar, typed data reaches the pty unchanged', async () => {
+      renderPane();
+      await waitFor(() => expect(dataListener).not.toBeNull());
+      type('c');
+      expect(sendInput).toHaveBeenLastCalledWith('c');
+    });
   });
 });
