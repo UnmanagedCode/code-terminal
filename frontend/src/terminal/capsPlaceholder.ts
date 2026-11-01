@@ -62,8 +62,15 @@ export function attachCapsPlaceholder(t: Host, placeholder = PLACEHOLDER): () =>
     [textarea, 'compositionend', () => { composing = false; schedule(); }, false],
     [textarea, 'paste', schedule, false],
     [textarea, 'focus', schedule, false],
-    // An IME may cancel a composition on blur without `compositionend`; stuck state would stop every reseed.
-    [textarea, 'blur', () => { composing = false; schedule(); }, false],
+    // An IME may cancel a composition on blur without `compositionend`; stuck state would stop every
+    // reseed. Seeding now would put the placeholder inside a composition xterm may still finalize
+    // from an earlier start offset, so the next focus or keydown seeds instead.
+    [textarea, 'blur', () => {
+      if (composing) {
+        composing = false;
+        clearTimeout(timer);
+      } else schedule();
+    }, false],
     [element, 'contextmenu', schedule, false],
   ];
   for (const [target, type, fn, capture] of listeners) target.addEventListener(type, fn, capture);

@@ -169,12 +169,28 @@ describe('capsPlaceholder', () => {
     expect(ta.value).toBe(P);
   });
 
-  test('a composition cancelled by blur without compositionend does not stop later reseeds', () => {
+  test('a composition cancelled by blur without compositionend does not stop later reseeds on focus or Enter', () => {
     fire('compositionstart', { data: '' });
     fire('blur');
     flush();
+    expect(ta.value).toBe('');
+    fire('focus');
+    flush();
     expect(ta.value).toBe(P);
+    fire('compositionstart', { data: '' });
+    fire('blur');
     key(13); flush();
+    expect(ta.value).toBe(P);
+  });
+
+  test('a blur during a composition begun on the Enter-emptied field never lets the placeholder reach the pty', () => {
+    key(13);
+    fire('compositionstart', { data: '' });
+    fire('blur');
+    flush();
+    fire('compositionend', { data: '' });
+    flush();
+    expect(bytes).toEqual(['\r']);
     expect(ta.value).toBe(P);
   });
 
