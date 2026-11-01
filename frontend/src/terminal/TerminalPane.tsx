@@ -12,6 +12,7 @@ import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
 import { ExtraKeys } from './ExtraKeys';
 import { keySequence, Modifiers, type ExtraKeyId } from './extraKeys';
+import { attachCapsPlaceholder } from './capsPlaceholder';
 import { attachClipboardKeys } from './keys';
 import { activateLink, linkTip, type LinkTip } from './links';
 import { connectSession, type ConnState, type Connection } from './socket';
@@ -57,6 +58,7 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
   const [size, setSize] = useState({ cols: 0, rows: 0 });
   const [restartError, setRestartError] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [opened, setOpened] = useState<Terminal | null>(null);
   const [mods] = useState(() => new Modifiers());
   const touch = useTouchDevice();
 
@@ -96,6 +98,7 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       if (disposed || !host.current) return;
       t.open(host.current);
       disableTextAssist(t.textarea);
+      setOpened(t);
       const s = measure();
       last = `${s.cols}x${s.rows}`;
       conn.current = connectSession(sessionId, () => ({ cols: t.cols, rows: t.rows }), {
@@ -126,8 +129,14 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       conn.current = null;
       t.dispose();
       term.current = null;
+      setOpened(null);
     };
   }, [pane.sessionId, mods]);
+
+  useEffect(() => {
+    if (!touch || !opened) return;
+    return attachCapsPlaceholder(opened);
+  }, [touch, opened]);
 
   useEffect(() => {
     if (focused) term.current?.focus();

@@ -18,6 +18,16 @@ export async function run({ page, scratch, shot }) {
   }
   await shot('mobile-1-bar.png');
 
+  // The placeholder keeps the field non-empty, and never reaches the shell.
+  await textarea.focus();
+  const seeded = await textarea.inputValue();
+  assert.notEqual(seeded, '', 'the helper field holds a placeholder');
+  await page.keyboard.insertText('echo caps-ok');
+  await page.keyboard.press('Enter');
+  await until(async () => (await textarea.inputValue()) === seeded, 'the placeholder back after Enter');
+  await waitText(pane, /^caps-ok$/m, 'the typed command output');
+  assert.doesNotMatch(await pane.innerText(), /command not found/);
+
   const tap = async (name) => {
     await bar.getByRole('button', { name, exact: true }).tap();
     assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-helper-textarea', `focus stays on the textarea after ${name}`);

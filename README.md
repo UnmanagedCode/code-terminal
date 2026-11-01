@@ -10,7 +10,7 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin:
 - Per-project shell history for bash and zsh, shared live between a project's shells.
 - Shells live in the plugin backend: a browser reload reattaches and replays screen and scrollback.
 - "Open terminal" in cc's project and worktree `⋮` menus opens (or reuses) that checkout's tab.
-- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane; `autocomplete=off` on the terminal's input.
+- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane, and a hidden placeholder in the terminal's input so soft keyboards that ignore `autocapitalize` do not capitalize the first letter.
 - Projects on a System without terminal support are shown disabled with cc's reason.
 
 Details: [docs/features.md](docs/features.md).
@@ -55,6 +55,7 @@ Internals: [docs/architecture.md](docs/architecture.md).
 | `RUN_REAL_CC=1 npm run test:server` | also runs `tests/integration/` against scratch ccs (needs `CC_PROJECTS_ROOT`) |
 | `node harness/playwright/run.mjs [split\|reload\|history\|untrusted-output\|tabs\|menu\|mobile]` | visual scenarios against a scratch cc; screenshots in `harness/playwright/out/` |
 | `node harness/playwright/screenshot.mjs [out.png]` | screenshot of the standalone page |
+| `npx vite build --config harness/mobile-input/vite.config.ts` | builds the phone test page into `harness/mobile-input/dist/` |
 
 ## Verification harnesses
 
@@ -65,6 +66,8 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 
 ## Known limitations
 
+- After a touch selection or a long-press with a selection, the helper field holds the selected text instead of the placeholder, so the next first letter may still be capitalized.
+- A soft-keyboard suggestion tap that rewrites an already-sent word sends garbage (xterm's offset arithmetic); with the placeholder the first word is included.
 - Ctrl/⌘+1…9 switch tabs only while focus is inside the plugin's frame, and never reach the shell.
 - Browsers that ignore `interactive-widget=resizes-content` (iOS Safari) overlay the soft keyboard instead of resizing the page, so it can cover the extra-keys bar.
 - Shells do not survive a restart of the plugin backend, of cc, or of a remote System's provider: their panes show `ended` with **Restart**.
