@@ -98,7 +98,7 @@
 ## Touch devices
 
 - **Gate:** the bar renders only when `matchMedia('(hover: none)')` matches (`TOUCH_QUERY` in `useTouchDevice.ts`), and follows changes live. Desktop never has it in the DOM.
-- **Soft keyboard:** every terminal's helper textarea gets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false`.
+- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea. xterm already sets the first, second and fourth itself; in practice this adds `autocomplete=off`. It is not a verified fix for phones capitalizing input.
 - **Bar** (`role="toolbar"`, "Extra keys", under each pane; keys from `EXTRA_KEYS`): Esc, Tab, Ctrl, Alt, `~ | / -`, ← ↑ ↓ →.
 - **Focus:** a tap never blurs the terminal (the soft keyboard stays up) and focuses the tapped pane.
 - **Ctrl/Alt:** one tap arms the next key (one-shot); a second tap within `DOUBLE_TAP_MS` locks it; tapping a locked or armed-but-slow modifier clears it. Armed state shows as `aria-pressed` and `data-mod-state` (`once`/`locked`). They apply to bar keys and to characters typed on the soft keyboard.

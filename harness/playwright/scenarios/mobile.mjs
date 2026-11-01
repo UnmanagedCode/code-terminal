@@ -34,8 +34,10 @@ export async function run({ page, scratch, shot }) {
   await waitUnwrapped(pane, /\$ echo after-int\s*$/, 'the recalled command');
   await page.keyboard.press('Control+u');
 
-  await tap('Control');
-  await tap('Control');
+  // Both taps in one burst: separate awaited tap() round trips could straddle DOUBLE_TAP_MS.
+  const box = await bar.getByRole('button', { name: 'Control' }).boundingBox();
+  const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+  await Promise.all([page.touchscreen.tap(x, y), page.touchscreen.tap(x, y)]);
   await until(async () => (await bar.getByRole('button', { name: 'Control' }).getAttribute('data-mod-state')) === 'locked', 'Ctrl to lock');
   await shot('mobile-2-locked.png');
   await tap('Control');

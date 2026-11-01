@@ -10,7 +10,7 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin:
 - Per-project shell history for bash and zsh, shared live between a project's shells.
 - Shells live in the plugin backend: a browser reload reattaches and replays screen and scrollback.
 - "Open terminal" in cc's project and worktree `⋮` menus opens (or reuses) that checkout's tab.
-- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane; the soft keyboard's autocapitalize and autocorrect are off.
+- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane; `autocomplete=off` on the terminal's input.
 - Projects on a System without terminal support are shown disabled with cc's reason.
 
 Details: [docs/features.md](docs/features.md).

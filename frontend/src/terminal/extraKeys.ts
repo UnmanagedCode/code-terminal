@@ -43,9 +43,10 @@ function ctrlChar(ch: string): string {
 }
 
 // Applies Ctrl/Alt to one keystroke's data. null: the data is not a keystroke (a terminal
-// report such as a DSR reply, mouse report, focus event or bracketed paste) and must pass
+// report such as a DSR reply, mouse report, focus event or bracketed paste, or empty data) and must pass
 // through unmodified.
 export function applyModifiers(data: string, { ctrl, alt }: ModifierFlags): string | null {
+  if (data === '') return null;
   const arrow = ARROW_SEQ.exec(data);
   if (arrow) {
     if (!ctrl && !alt) return data;

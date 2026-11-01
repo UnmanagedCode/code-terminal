@@ -135,6 +135,10 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
 
   function sendExtraKey(id: ExtraKeyId) {
     onFocus();
+    if (id === 'ctrl' || id === 'alt') {
+      mods.tap(id);
+      return;
+    }
     const t = term.current;
     if (t?.element) t.input(keySequence(id, t.modes.applicationCursorKeysMode));
   }

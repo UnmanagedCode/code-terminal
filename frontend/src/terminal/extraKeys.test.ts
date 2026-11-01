@@ -74,6 +74,11 @@ describe('applyModifiers', () => {
     for (const r of ['\x1b[12;5R', '\x1b[<0;3;4M', '\x1b[I', '\x1b[200~x\x1b[201~']) expect(applyModifiers(r, ctrl)).toBeNull();
   });
 
+  test('empty data is not a keystroke', () => {
+    expect(applyModifiers('', ctrl)).toBeNull();
+    expect(applyModifiers('', alt)).toBeNull();
+  });
+
   test('no modifier leaves arrows unchanged', () => {
     expect(applyModifiers('\x1b[A', none)).toBe('\x1b[A');
   });
@@ -124,9 +129,11 @@ describe('Modifiers', () => {
     expect(mods.apply('x')).toBe('\x1bx');
   });
 
-  test('a report does not consume a one-shot', () => {
+  test('a report or empty data does not consume a one-shot', () => {
     const { mods } = clocked();
     mods.tap('ctrl');
+    expect(mods.apply('')).toBe('');
+    expect(mods.get().ctrl).toBe('once');
     expect(mods.apply('\x1b[I')).toBe('\x1b[I');
     expect(mods.get().ctrl).toBe('once');
   });

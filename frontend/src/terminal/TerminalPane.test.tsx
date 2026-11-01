@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type { ConnHandlers, ConnState } from './socket';
 
 const termModes = { applicationCursorKeysMode: false };
+const termInput = vi.fn((d: string) => dataListener?.(d));
 let dataListener: ((d: string) => void) | null = null;
 
 // xterm needs a real layout engine; the pane's contract is tested against stand-ins.
@@ -17,7 +18,7 @@ vi.mock('@xterm/xterm', () => ({
       this.textarea.className = 'xterm-helper-textarea';
       el.appendChild(this.textarea);
     }
-    input = vi.fn((d: string) => dataListener?.(d));
+    input = termInput;
     onData(fn: (d: string) => void) { dataListener = fn; return { dispose() {} }; } onBinary() { return { dispose() {} }; }
     onTitleChange(fn: (t: string) => void) { titleListener = fn; return { dispose() {} }; }
     attachCustomKeyEventHandler() {} getSelection() { return ''; } hasSelection() { return false; } paste() {}
@@ -60,6 +61,7 @@ beforeEach(() => {
   dataListener = null;
   termModes.applicationCursorKeysMode = false;
   sendInput.mockClear();
+  termInput.mockClear();
   stubMatchMedia(false);
   reattach.mockClear();
   fetchMock.mockReset();
@@ -192,9 +194,11 @@ describe('TerminalPane', () => {
       await renderTouch();
       await waitFor(() => expect(handlers).not.toBeNull());
       fireEvent.click(key('Up arrow'));
+      expect(termInput).toHaveBeenLastCalledWith('\x1b[A');
       expect(sendInput).toHaveBeenLastCalledWith('\x1b[A');
       termModes.applicationCursorKeysMode = true;
       fireEvent.click(key('Up arrow'));
+      expect(termInput).toHaveBeenLastCalledWith('\x1bOA');
       expect(sendInput).toHaveBeenLastCalledWith('\x1bOA');
     });
 
@@ -235,7 +239,11 @@ describe('TerminalPane', () => {
       await renderTouch(onFocus);
       onFocus.mockClear();
       fireEvent.click(key('Tab'));
-      expect(onFocus).toHaveBeenCalled();
+      expect(onFocus).toHaveBeenCalledTimes(1);
+      fireEvent.click(key('Control'));
+      expect(onFocus).toHaveBeenCalledTimes(2);
+      fireEvent.click(key('Alt'));
+      expect(onFocus).toHaveBeenCalledTimes(3);
     });
 
     test('without the bar, typed data reaches the pty unchanged', async () => {

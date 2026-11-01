@@ -21,7 +21,7 @@ export function ExtraKeys({ mods, onKey }: Props) {
             aria-pressed={mod === undefined ? undefined : mod !== 'off'}
             data-mod-state={mod}
             onPointerDown={(e) => e.preventDefault()}
-            onClick={() => (mod === undefined ? onKey(k.id) : mods.tap(k.id as ModName))}
+            onClick={() => onKey(k.id)}
           >
             {k.label}
           </button>
