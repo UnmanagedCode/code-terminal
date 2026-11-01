@@ -5,6 +5,7 @@ import type { ConnHandlers, ConnState } from './socket';
 const termModes = { applicationCursorKeysMode: false };
 const termInput = vi.fn((d: string) => dataListener?.(d));
 let dataListener: ((d: string) => void) | null = null;
+const dataFns = new Set<(d: string) => void>();
 
 // xterm needs a real layout engine; the pane's contract is tested against stand-ins.
 vi.mock('@xterm/xterm', () => ({
@@ -19,7 +20,12 @@ vi.mock('@xterm/xterm', () => ({
       el.appendChild(this.textarea);
     }
     input = termInput;
-    onData(fn: (d: string) => void) { dataListener = fn; return { dispose() {} }; } onBinary() { return { dispose() {} }; }
+    onSelectionChange() { return { dispose() {} }; }
+    onData(fn: (d: string) => void) {
+      dataFns.add(fn);
+      dataListener = (d) => dataFns.forEach((f) => f(d));
+      return { dispose() { dataFns.delete(fn); } };
+    } onBinary() { return { dispose() {} }; }
     onTitleChange(fn: (t: string) => void) { titleListener = fn; return { dispose() {} }; }
     attachCustomKeyEventHandler() {} getSelection() { return ''; } hasSelection() { return false; } paste() {}
   },
@@ -36,6 +42,7 @@ vi.mock('./socket', () => ({
 }));
 
 const { TerminalPane } = await import('./TerminalPane');
+const { PLACEHOLDER } = await import('./capsPlaceholder');
 const { EXTRA_KEYS } = await import('./extraKeys');
 const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
@@ -59,6 +66,7 @@ beforeEach(() => {
   handlers = null;
   titleListener = null;
   dataListener = null;
+  dataFns.clear();
   termModes.applicationCursorKeysMode = false;
   sendInput.mockClear();
   termInput.mockClear();
@@ -251,6 +259,55 @@ describe('TerminalPane', () => {
       await waitFor(() => expect(dataListener).not.toBeNull());
       type('c');
       expect(sendInput).toHaveBeenLastCalledWith('c');
+    });
+
+    describe('caps placeholder', () => {
+      const field = () => document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')!;
+
+      test('on touch the helper field holds the placeholder after open', async () => {
+        await renderTouch();
+        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+      });
+
+      test('on desktop the field is never written: not at open, nor after Enter, blur or focus', async () => {
+        renderPane();
+        await waitFor(() => expect(field()).not.toBeNull());
+        await waitFor(() => expect(matchMediaMock).toHaveBeenCalled());
+        vi.useFakeTimers();
+        try {
+          fireEvent.keyDown(field(), { keyCode: 13 });
+          fireEvent.blur(field());
+          fireEvent.focus(field());
+          act(() => { vi.advanceTimersByTime(10); });
+          expect(field().value).toBe('');
+        } finally { vi.useRealTimers(); }
+      });
+
+      test('the gate follows the media query live: leaving touch empties the field, returning reseeds it', async () => {
+        await renderTouch();
+        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        mqlMatches = false;
+        act(() => mqlListeners.forEach((f) => f()));
+        expect(field().value).toBe('');
+        mqlMatches = true;
+        act(() => mqlListeners.forEach((f) => f()));
+        expect(field().value).toBe(PLACEHOLDER);
+      });
+
+      test('a DEL for a deleted placeholder reaches the pty through onData', async () => {
+        await renderTouch();
+        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        vi.useFakeTimers();
+        try {
+          fireEvent(field(), new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true }));
+          field().value = '';
+          fireEvent(field(), new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+          act(() => { vi.advanceTimersByTime(10); });
+          expect(termInput).toHaveBeenCalledWith('\x7f');
+          expect(sendInput).toHaveBeenCalledWith('\x7f');
+          expect(field().value).toBe(PLACEHOLDER);
+        } finally { vi.useRealTimers(); }
+      });
     });
   });
 });

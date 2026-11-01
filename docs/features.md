@@ -98,7 +98,16 @@
 ## Touch devices
 
 - **Gate:** the bar renders only when `matchMedia('(hover: none)')` matches (`TOUCH_QUERY` in `useTouchDevice.ts`), and follows changes live. Desktop never has it in the DOM.
-- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea. xterm already sets the first, second and fourth itself; in practice this adds `autocomplete=off`. It is not a verified fix for phones capitalizing input.
+- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea. xterm already sets the first, second and fourth itself; this adds `autocomplete=off`. SwiftKey ignores `autocapitalize`, hence the placeholder below.
+- **Caps placeholder** (touch only, `attachCapsPlaceholder`): `PLACEHOLDER` in `capsPlaceholder.ts` sits before the cursor of the helper textarea whenever it would otherwise be empty, so keyboards that capitalize the first letter of an empty field see text before the cursor. It is never sent to the shell. Deleting it sends one `\x7f`. Follows the gate live: leaving touch removes it.
+- **Device test page:** `harness/mobile-input/` is a standalone page with a real xterm, the bar, a local echo, the exact bytes sent and a textarea event trace; `?p=x`, `?p=200b` and `?p=none` pick the placeholder (`none` = no placeholder). Build: `npx vite build --config harness/mobile-input/vite.config.ts` (output `harness/mobile-input/dist/`). Checklist, run on a phone:
+  1. `?p=none`: typing `ls` logs `L`, `s`.
+  2. `?p=x`: at a fresh prompt `ls` logs `l`, `s`; also after Enter and after switching apps and back.
+  3. Backspace: `abc` + 3 × Backspace logs 3 × `\x7f`; a 4th (on the placeholder) logs exactly one, a 5th another; holding never doubles or stops.
+  4. Swipe a word, tap a prediction, use voice input: the log holds the word, never the placeholder; note the prediction strip.
+  5. Bar Ctrl then `c` logs `\x03`; long-press paste logs the pasted text only.
+  6. **Autocorrect on space:** at a fresh prompt type a misspelled first word and a space (`gti status`), then a correct one (`ls `). SwiftKey sees the placeholder as part of the first word (`xgti`) and may rewrite it on space; the log must show exactly what was sent.
+  7. Repeat 2–6 with `?p=200b`; prefer U+200B if caps stay off, predictions show only the typed word and autocorrect leaves the first word alone.
 - **Bar** (`role="toolbar"`, "Extra keys", under each pane; keys from `EXTRA_KEYS`): Esc, Tab, Ctrl, Alt, `~ | / -`, ← ↑ ↓ →.
 - **Focus:** a tap never blurs the terminal (the soft keyboard stays up) and focuses the tapped pane.
 - **Ctrl/Alt:** one tap arms the next key (one-shot); a second tap within `DOUBLE_TAP_MS` locks it; tapping a locked or armed-but-slow modifier clears it. Armed state shows as `aria-pressed` and `data-mod-state` (`once`/`locked`). They apply to bar keys and to characters typed on the soft keyboard.

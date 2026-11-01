@@ -3,3 +3,4 @@ frontend/dist/
 package-lock.json
 .mutation/
 harness/playwright/out/
+harness/mobile-input/dist/

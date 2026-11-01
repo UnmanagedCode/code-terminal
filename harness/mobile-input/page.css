@@ -1,0 +1,14 @@
+body { margin: 0; font: 14px system-ui, sans-serif; background: #fff; color: #111; }
+main { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+h1 { font-size: 15px; margin: 0; }
+nav { display: flex; gap: 12px; flex-wrap: wrap; }
+nav a.on { font-weight: 700; }
+.term { height: 120px; background: #000; }
+.extra-keys { display: flex; gap: 4px; }
+.extra-key { flex: 1; padding: 8px 0; touch-action: manipulation; }
+.extra-key[data-mod-state='once'], .extra-key[data-mod-state='locked'] { background: #fc8; }
+h2 { font-size: 13px; margin: 4px 0 0; }
+pre, ol { margin: 0; font: 12px ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; }
+pre { max-height: 160px; overflow: auto; border: 1px solid #ccc; padding: 4px; }
+mark { background: #fd0; }
+ol { font-family: system-ui, sans-serif; padding-left: 18px; font-size: 13px; }
