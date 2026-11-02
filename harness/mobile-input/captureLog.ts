@@ -2,7 +2,7 @@
 // Every record is one line; every string is JSON-escaped so the log pastes back losslessly.
 
 export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E';
-export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6';
+export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7';
 export type Verdict = 'PASS' | 'TRAIL' | 'FAIL';
 export type Answer = 'yes' | 'no' | '?';
 
@@ -13,10 +13,12 @@ export const STEPS: { id: StepId; want: string }[] = [
   { id: 'S4', want: 'echo hi  there' },
   { id: 'S5', want: 'cd ..' },
   { id: 'S6', want: 'teh cat' },
+  // Type abc, Backspace four times (one more than the field holds), then d.
+  { id: 'S7', want: 'd' },
 ];
 
 export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
-  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
+  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'],
   B: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   C: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   D: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
@@ -86,7 +88,9 @@ export const inputLine = (ms: number, kind: 'bi' | 'in', inputType: string, data
 export const compLine = (ms: number, kind: 'cs' | 'cu' | 'ce', data: string, snap: Snap) =>
   at(ms, kind, q(data), snapText(snap));
 
-export const focusLine = (ms: number, kind: 'fo' | 'bl', snap: Snap) => at(ms, kind, snapText(snap));
+// `xf` (variant A): whether xterm's element has its `focus` class after the event.
+export const focusLine = (ms: number, kind: 'fo' | 'bl', snap: Snap, xf?: boolean) =>
+  at(ms, kind, snapText(snap), ...(xf === undefined ? [] : [`xf=${xf ? 1 : 0}`]));
 
 export const snapLine = (ms: number, snap: Snap) => at(ms, '~', snapText(snap));
 
@@ -113,7 +117,7 @@ export const resultLine = (id: VariantId, step: StepId, got: string, want: strin
 export const obsLine = (id: VariantId, strip: Answer, caps: Answer) => `!${id} strip=${strip} caps=${caps}`;
 
 // Done steps per variant: distinct steps with a `=` result line, so a redo is counted once.
-const RESULT = /^=([A-E])\.(S[1-6]) /;
+const RESULT = /^=([A-E])\.(S[1-7]) /;
 export function tally(lines: readonly string[]): Record<VariantId, number> {
   const done = new Map<VariantId, Set<StepId>>();
   for (const line of lines) {
@@ -126,4 +130,147 @@ export function tally(lines: readonly string[]): Record<VariantId, number> {
   return Object.fromEntries(
     (Object.keys(VARIANT_STEPS) as VariantId[]).map((v) => [v, done.get(v)?.size ?? 0]),
   ) as Record<VariantId, number>;
+}
+
+// --- parsing a log back into steps ----------------------------------------------------------------
+
+type Pos = { v: string; s0: number; s1: number };
+export type LogEvent = { ms: number } & (
+  | ({ kind: 'kd' | 'ku'; key: string; code: string; keyCode: number } & Pos)
+  | ({ kind: 'bi' | 'in'; inputType: string; data: string | null; composing: boolean } & Pos)
+  | ({ kind: 'cs' | 'cu' | 'ce'; data: string } & Pos)
+  | ({ kind: 'fo' | 'bl'; xf?: boolean } & Pos)
+  | ({ kind: '~' } & Pos)
+  | { kind: 'tx'; bytes: string }
+);
+
+export interface LogStep {
+  variant: VariantId;
+  id: StepId;
+  want: string;
+  redo: boolean;
+  events: LogEvent[];
+  got?: string;
+  verdict?: Verdict;
+}
+
+const TOKEN = /(?:v=)?"(?:[^"\\]|\\.)*"|\S+/g;
+const START = /^@([A-E])\.(S[1-7]) (?:want=(".*")|redo)$/;
+const RESULT_LINE = /^=([A-E])\.(S[1-7]) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
+
+function parseEvent(line: string): LogEvent {
+  const tokens = line.match(TOKEN) ?? [];
+  const [msText, kind, ...rest] = tokens;
+  const ms = Number(msText);
+  const str = (t: string) => JSON.parse(t) as string;
+  // Trailing `v="…" s=a,b` (and `xf=`) are read from the end; the rest are positional.
+  let xf: boolean | undefined;
+  if (rest.at(-1)?.startsWith('xf=')) xf = rest.pop() === 'xf=1';
+  const readPos = (): Pos => {
+    const s = /^s=(\d+),(\d+)$/.exec(rest.pop() ?? '');
+    const v = rest.pop() ?? '';
+    if (!s || !v.startsWith('v=')) throw new Error(`malformed capture line: ${line}`);
+    return { v: str(v.slice(2)), s0: Number(s[1]), s1: Number(s[2]) };
+  };
+  switch (kind) {
+    case 'tx': return { ms, kind, bytes: str(rest[0]) };
+    case 'kd': case 'ku': {
+      const pos = readPos();
+      return { ms, kind, key: str(rest[0]), code: str(rest[1]), keyCode: Number(rest[2]), ...pos };
+    }
+    case 'bi': case 'in': {
+      const pos = readPos();
+      return { ms, kind, inputType: str(rest[0]), data: rest[1] === 'null' ? null : str(rest[1]), composing: rest[2] === 'c1', ...pos };
+    }
+    case 'cs': case 'cu': case 'ce': {
+      const pos = readPos();
+      return { ms, kind, data: str(rest[0]), ...pos };
+    }
+    case 'fo': case 'bl': return { ms, kind, ...readPos(), ...(xf === undefined ? {} : { xf }) };
+    case '~': return { ms, kind, ...readPos() };
+    default: throw new Error(`unknown capture record: ${line}`);
+  }
+}
+
+// Groups a log into steps: events between an `@` line and the next one belong to that step.
+// Header, observation and blank lines carry no events and are skipped.
+export function parseCaptureLog(text: string): LogStep[] {
+  const steps: LogStep[] = [];
+  let cur: LogStep | undefined;
+  for (const line of text.split('\n')) {
+    if (line === '' || line[0] === '#' || line[0] === '!') continue;
+    if (line[0] === '@') {
+      const m = START.exec(line);
+      if (!m) throw new Error(`malformed step line: ${line}`);
+      cur = { variant: m[1] as VariantId, id: m[2] as StepId, want: m[3] ? (JSON.parse(m[3]) as string) : '', redo: !m[3], events: [] };
+      steps.push(cur);
+    } else if (line[0] === '=') {
+      const m = RESULT_LINE.exec(line);
+      if (!m || !cur) throw new Error(`malformed result line: ${line}`);
+      cur.got = JSON.parse(m[3]) as string;
+      cur.verdict = m[5] as Verdict;
+    } else {
+      cur?.events.push(parseEvent(line));
+    }
+  }
+  return steps;
+}
+
+// --- the report sent from the page ---------------------------------------------------------------
+
+// Mirrors MAX_REPORT_BYTES in code-artifact's assets/relay.js: the UTF-8 size of the report JSON.
+export const REPORT_LIMIT_BYTES = 32768;
+
+export interface Report {
+  kind: 'swiftkey-capture';
+  v: 1;
+  lines: string[];
+}
+
+const utf8Size = (r: Report) => new TextEncoder().encode(JSON.stringify(r)).length;
+
+// Headers, step starts, verdicts and observations always go; event lines only for steps that
+// failed or never ended. Over the limit, the oldest events of the failed step with the most
+// events left are dropped first, and the step's `@` line is followed by a marker saying how many.
+export function buildReport(lines: readonly string[], limit = REPORT_LIMIT_BYTES): Report {
+  type Group = { start: number; events: string[]; trimmed: number; failed: boolean };
+  const groups: Group[] = [];
+  const kept: (string | Group)[] = [];
+  let cur: Group | undefined;
+  for (const line of lines) {
+    const c = line[0];
+    if (c === '@') {
+      cur = { start: kept.length, events: [], trimmed: 0, failed: true };
+      groups.push(cur);
+      kept.push(line, cur);
+    } else if (c === '=') {
+      if (cur && !line.endsWith(' FAIL')) cur.failed = false;
+      kept.push(line);
+    } else if (c === '#' || c === '!') {
+      kept.push(line);
+    } else if (cur) {
+      cur.events.push(line);
+    }
+  }
+  const render = (): Report => ({
+    kind: 'swiftkey-capture',
+    v: 1,
+    lines: kept.flatMap((k) => {
+      if (typeof k === 'string') return [k];
+      if (!k.failed) return [];
+      return [...(k.trimmed ? [`… ${k.trimmed} earlier events trimmed`] : []), ...k.events];
+    }),
+  });
+  const failed = groups.filter((g) => g.failed);
+  const full = failed.map((g) => g.events);
+  for (const g of failed) g.events = [];
+  if (utf8Size(render()) > limit) throw new Error(`capture report over the ${limit}-byte limit without any event lines`);
+  failed.forEach((g, i) => { g.events = full[i]; });
+  while (utf8Size(render()) > limit) {
+    const g = failed.reduce((a, b) => (b.events.length > a.events.length ? b : a));
+    if (g.events.length === 0) throw new Error(`capture report over the ${limit}-byte limit`);
+    g.events.shift();
+    g.trimmed++;
+  }
+  return render();
 }

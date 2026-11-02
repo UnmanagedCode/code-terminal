@@ -1,0 +1,138 @@
+// Touch typing goes through a hidden <input> instead of xterm's helper textarea.
+//
+// Soft keyboards in suggestion mode (SwiftKey) rewrite the field behind the user's back
+// (re-committing words, autospace after punctuation, auto-capitals), and xterm turns Android
+// typing into a value diff taken on a timer, which loses or repeats bytes when edits arrive in
+// one batch. An input created as `type=password` and then switched to `type=text` gets no
+// suggestion strip, so the field only ever receives plain edits; each one is mirrored to the
+// shell at once, with no timers. The attributes must be set before the first focus: Chrome
+// copies them into the keyboard's editor info when the field gains focus.
+import type { Terminal } from '@xterm/xterm';
+import { applyModifiers, keySequence, type ExtraKeyId } from './extraKeys';
+import { disableTextAssist } from './softKeyboard';
+
+const DEL = '\x7f';
+
+const NAMED_KEY: Record<string, ExtraKeyId> = {
+  ArrowLeft: 'left', ArrowUp: 'up', ArrowDown: 'down', ArrowRight: 'right', Tab: 'tab', Escape: 'esc',
+};
+
+export interface TouchInput {
+  focus(): void;
+  dispose(): void;
+}
+
+const isHighSurrogate = (c: number) => c >= 0xd800 && c <= 0xdbff;
+
+// Call after `open()`.
+export function attachTouchInput(t: Terminal): TouchInput {
+  const { textarea, element } = t;
+  if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
+
+  const el = document.createElement('input');
+  el.type = 'password';
+  (textarea.parentElement ?? element).append(el);
+  el.type = 'text';
+  disableTextAssist(el);
+  el.setAttribute('aria-label', 'Terminal input');
+  el.className = 'xterm-touch-input';
+  // The same hiding as xterm's helper textarea; 16px stops iOS from zooming on focus.
+  Object.assign(el.style, {
+    position: 'absolute', opacity: '0', zIndex: '-5', border: '0', padding: '0', margin: '0',
+    caretColor: 'transparent', fontSize: '16px',
+  });
+  const place = () => {
+    const s = textarea.style;
+    Object.assign(el.style, { left: s.left, top: s.top, width: s.width, height: s.height });
+  };
+  place();
+
+  // The value already sent to the shell; the field mirrors it.
+  let last = '';
+
+  const send = (s: string) => { if (s) t.input(s); };
+  const onInput = (e: Event) => {
+    const v = el.value;
+    let p = 0;
+    const n = Math.min(last.length, v.length);
+    while (p < n && last[p] === v[p]) p++;
+    if (p > 0 && isHighSurrogate(last.charCodeAt(p - 1))) p--;
+    send(DEL.repeat([...last.slice(p)].length));
+    send(v.slice(p));
+    last = v;
+    // A keyboard that mis-tracks the caret (it reports 0 on first focus) sends later characters
+    // to the wrong place; moving the caret to the end makes Chrome resync the keyboard.
+    if (!(e as InputEvent).isComposing && (el.selectionStart !== v.length || el.selectionEnd !== v.length)) {
+      el.setSelectionRange(v.length, v.length);
+    }
+  };
+
+  const onBeforeInput = (e: Event) => {
+    const type = (e as InputEvent).inputType;
+    if (type === 'insertLineBreak' || type === 'insertParagraph') e.preventDefault();
+  };
+
+  const onKeyDown = (e: Event) => {
+    const k = e as KeyboardEvent;
+    if (k.isComposing || k.keyCode === 229) return;
+    let out: string | null = null;
+    if (k.key === 'Enter') out = '\r';
+    else if (k.key === 'Backspace') out = k.keyCode === 8 && el.value === '' ? DEL : null;
+    else if (NAMED_KEY[k.key]) out = keySequence(NAMED_KEY[k.key], t.modes.applicationCursorKeysMode);
+    else if (k.key.length === 1 && (k.ctrlKey || k.altKey) && !k.metaKey && !(k.ctrlKey && k.shiftKey)) {
+      out = applyModifiers(k.key, { ctrl: k.ctrlKey, alt: k.altKey });
+    }
+    if (out === null) return;
+    k.preventDefault();
+    t.input(out);
+  };
+
+  const onPaste = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation(); // xterm also listens for paste on its element
+    t.paste((e as ClipboardEvent).clipboardData?.getData('text/plain') ?? '');
+  };
+
+  // xterm keeps its focused state (cursor style, `focus` class, DECSET 1004 reports) through
+  // events on its textarea, which is disabled and so can never gain focus itself.
+  const relay = (type: 'focus' | 'blur') => () => { textarea.dispatchEvent(new FocusEvent(type)); };
+  const onFocus = relay('focus');
+  const onBlur = relay('blur');
+  const onMouseDown = () => { el.focus({ preventScroll: true }); };
+
+  const listeners: [EventTarget, string, (e: Event) => void][] = [
+    [el, 'input', onInput],
+    [el, 'beforeinput', onBeforeInput],
+    [el, 'keydown', onKeyDown],
+    [el, 'paste', onPaste],
+    [el, 'focus', onFocus],
+    [el, 'blur', onBlur],
+    [element, 'mousedown', onMouseDown],
+  ];
+  for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
+
+  // After a command is sent the keyboard's context should be an empty field, as xterm leaves it.
+  const offData = t.onData((d) => {
+    if (d === '\r' || d === '\x03') {
+      el.value = '';
+      last = '';
+    }
+  });
+  const offRender = t.onRender(place);
+
+  if (document.activeElement === textarea) el.focus({ preventScroll: true });
+  textarea.disabled = true;
+
+  return {
+    focus: () => { el.focus({ preventScroll: true }); },
+    dispose() {
+      const hadFocus = document.activeElement === el;
+      for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
+      offData.dispose();
+      offRender.dispose();
+      el.remove();
+      textarea.disabled = false;
+      if (hadFocus) t.focus();
+    },
+  };
+}

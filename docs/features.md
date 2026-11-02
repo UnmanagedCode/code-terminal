@@ -98,23 +98,25 @@
 ## Touch devices
 
 - **Gate:** the bar renders only when `matchMedia('(hover: none)')` matches (`TOUCH_QUERY` in `useTouchDevice.ts`), and follows changes live. Desktop never has it in the DOM.
-- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea. xterm already sets the first, second and fourth itself; this adds `autocomplete=off`. SwiftKey ignores `autocapitalize`, hence the placeholder below.
-- **Caps placeholder** (touch only, `attachCapsPlaceholder`): `PLACEHOLDER` in `capsPlaceholder.ts` sits before the cursor of the helper textarea whenever it would otherwise be empty, so keyboards that capitalize the first letter of an empty field see text before the cursor. Typing, deletion, Enter, paste and composition never send it to the shell; an IME rewrite of the first word (e.g. SwiftKey recapitalizing `xls`) can include it. Deleting it sends one `\x7f`. Leaving touch empties the field only if it holds exactly the placeholder. Follows the gate live: leaving touch removes it.
-- **Device test page:** `harness/mobile-input/` is a standalone page with a real xterm, the bar, a local echo, the exact bytes sent and a textarea event trace; `?p=x`, `?p=200b` (diagnostic: U+200B does not stop SwiftKey capitalizing) and `?p=none` pick the placeholder (`none` = no placeholder). Build: `npx vite build --config harness/mobile-input/vite.config.ts` (output `harness/mobile-input/dist/`). Checklist, run on a phone:
-  1. `?p=none`: typing `ls` logs `L`, `s`.
-  2. `?p=x`: at a fresh prompt `ls` logs `l`, `s`; also after Enter and after switching apps and back.
-  3. Backspace: `abc` + 3 × Backspace logs 3 × `\x7f`; a 4th (on the placeholder) logs exactly one, a 5th another; holding never doubles or stops.
-  4. Swipe a word, tap a prediction, use voice input: the log holds the word and no stray placeholder (compare with what you typed); note the prediction strip.
-  5. Bar Ctrl then `c` logs `\x03`; long-press paste logs the pasted text only.
-  6. **Autocorrect on space:** at a fresh prompt type a misspelled first word and a space (`gti status`), then a correct one (`ls `). SwiftKey sees the placeholder as part of the first word (`xgti`) and may rewrite it on space; the log must show exactly what was sent.
-  7. `?p=200b` is a diagnostic only: on a device (Android 10, Chrome, SwiftKey) U+200B does not stop SwiftKey's capitalization, so `PLACEHOLDER` stays `x`.
-- **Event-capture page:** `capture.html` in the same build (`harness/mobile-input/dist/capture.html`) records every keyboard and input event on the field, the bytes xterm sends, and the field after each event settles, for the SwiftKey `.` bug. Pick a variant with the `A`–`E` buttons (`?v=A` in the URL):
-  - `A`: xterm helper textarea with the text-assist attributes and the caps placeholder (as shipped).
-  - `B`: the same attributes, no placeholder.
+- **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea and on the touch input below. SwiftKey ignores `autocapitalize` on a textarea, hence the touch input.
+- **Touch input** (touch only, `attachTouchInput` in `touchInput.ts`): typing goes through a hidden `<input>` (`.xterm-touch-input`, accessible name "Terminal input") created as `type=password` and switched to `type=text`, which keeps soft keyboards from showing suggestions, autocorrecting, auto-spacing or capitalizing. xterm's helper textarea is disabled while it is attached; focus and blur are relayed to xterm so the cursor style and DECSET 1004 reports still work.
+  - **Bytes:** every `input` event sends `\x7f` per deleted character, then the inserted text, at once; the field mirrors the shell line. Enter sends `\r` and empties the field, as does Ctrl+C (`\x03`).
+  - **Keys:** Backspace on an empty field → `\x7f`; arrows (DECCKM aware), Tab, Escape; Ctrl/Alt plus one character. Paste goes through `Terminal.paste` (bracketed when the application asked, newlines kept) and leaves the field alone.
+  - **Limits:** a hardware keyboard on a touch device loses F-keys, Home/End and Page Up/Down; swipe typing and voice input depend on the keyboard's mode for this field type; iOS is untested. Follows the gate live: leaving touch removes the input and re-enables the textarea.
+- **Device test page:** `harness/mobile-input/` is a standalone page with a real xterm using the production touch setup, the bar, a local echo, the exact bytes sent and an event trace of the touch input. Build: `npx vite build --config harness/mobile-input/vite.config.ts` (output `harness/mobile-input/dist/`). Checklist, run on a phone:
+  1. Type `ls` straight after tapping the box: it appears in order. No suggestion strip, no capital first letter, also after switching apps and back.
+  2. Backspace: `abc` + 4 × Backspace logs 3 × `\x7f` and one more on the empty field; holding never doubles or stops.
+  3. `ls -all.` then Enter logs exactly `ls -all.\r`.
+  4. Spacebar cursor swipe logs arrow bytes; note whether swipe typing and voice input still work.
+  5. Bar Ctrl then `c` logs `\x03`; arrows log their sequences; long-press paste logs the pasted text only.
+- **Event-capture page:** `capture.html` in the same build (`harness/mobile-input/dist/capture.html`) records every keyboard and input event on the field, the bytes xterm sends, and the field after each event settles. Pick a variant with the `A`–`E` buttons (`?v=A` in the URL):
+  - `A`: the shipped touch input (the logged field is the proxy). Also logs `xf=1|0` on each `fo`/`bl` line, whether xterm's element has its `focus` class after the relayed event, and shows the cursor state with a **Blur field** button.
+  - `B`: diagnostic, xterm helper textarea with the text-assist attributes only.
   - `C` / `D`: `B` plus `inputmode="email"` / `inputmode="url"`.
   - `E`: a plain `<input>`, created as a password field and switched to text; no xterm and no bytes.
-  - Tap the black box to focus, then type the step shown (`ls -all.`, `ls -all x.`, `x.`, `echo hi  there`, `cd ..`, `teh cat`) with keys only, then press Enter. `E` runs steps `S1`, `S4`, `S6` only. Each step logs one `=` result (`PASS`, `TRAIL` for a trailing-space-only difference, `FAIL`).
+  - Tap the black box to focus, then type the step shown (`ls -all.`, `ls -all x.`, `x.`, `echo hi  there`, `cd ..`, `teh cat`, and for `A` S7: `abc`, 4 × Backspace, `d`) with keys only, then press Enter. `E` runs steps `S1`, `S4`, `S6` only. Each step logs one `=` result (`PASS`, `TRAIL` for a trailing-space-only difference, `FAIL`).
   - Answer "Suggestion strip shown?" and "First letter capitalized?" after the first step; the last step logs one `!` line with the answers.
+  - **Send results** reports the log through `window.ccArtifact.report` (kind `swiftkey-capture`, `buildReport` in `captureLog.ts`): all `#`, `@`, `=`, `!` lines plus the events of failed or unfinished steps, trimmed oldest-first to `REPORT_LIMIT_BYTES`. It shows `Sent ✓` or `Not sent: <code>`; `NO_BRIDGE` means the page was not opened from cc's artifact link.
   - **Copy log** copies the whole log (headers first) to the clipboard, or selects the read-only box below it. The log persists in `localStorage` under `capture-log` across reloads; **Clear log** asks first.
 - **Bar** (`role="toolbar"`, "Extra keys", under each pane; keys from `EXTRA_KEYS`): Esc, Tab, Ctrl, Alt, `~ | / -`, ← ↑ ↓ →.
 - **Focus:** a tap never blurs the terminal (the soft keyboard stays up) and focuses the tapped pane.

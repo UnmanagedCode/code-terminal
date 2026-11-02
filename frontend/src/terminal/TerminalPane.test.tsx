@@ -21,6 +21,7 @@ vi.mock('@xterm/xterm', () => ({
     }
     input = termInput;
     onSelectionChange() { return { dispose() {} }; }
+    onRender() { return { dispose() {} }; }
     onData(fn: (d: string) => void) {
       dataFns.add(fn);
       dataListener = (d) => dataFns.forEach((f) => f(d));
@@ -42,7 +43,6 @@ vi.mock('./socket', () => ({
 }));
 
 const { TerminalPane } = await import('./TerminalPane');
-const { PLACEHOLDER } = await import('./capsPlaceholder');
 const { EXTRA_KEYS } = await import('./extraKeys');
 const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
@@ -158,7 +158,7 @@ describe('TerminalPane', () => {
     async function renderTouch(onFocus?: () => void) {
       stubMatchMedia(true);
       renderPane(vi.fn(), onFocus);
-      await waitFor(() => expect(document.querySelector('.xterm-helper-textarea')).not.toBeNull());
+      await waitFor(() => expect(document.querySelector('.xterm-touch-input')).not.toBeNull());
     }
     const type = (d: string) => act(() => dataListener!(d));
 
@@ -261,52 +261,54 @@ describe('TerminalPane', () => {
       expect(sendInput).toHaveBeenLastCalledWith('c');
     });
 
-    describe('caps placeholder', () => {
-      const field = () => document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')!;
+    describe('touch input', () => {
+      const proxy = () => screen.queryByRole('textbox', { name: 'Terminal input' }) as HTMLInputElement | null;
+      const textarea = () => document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')!;
+      const typeInto = (el: HTMLInputElement, text: string) => {
+        el.value += text;
+        fireEvent.input(el, { inputType: 'insertText', data: text });
+      };
 
-      test('on touch the helper field holds the placeholder after open', async () => {
+      test('on touch a textbox named "Terminal input" exists after open', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        expect(textarea().disabled).toBe(true);
       });
 
-      test('on desktop the field is never written: not at open, nor after Enter, blur or focus', async () => {
+      test('typing into the proxy reaches the pty, and a bar Ctrl then c sends ETX', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'l');
+        expect(sendInput).toHaveBeenLastCalledWith('l');
+        fireEvent.click(key('Control'));
+        typeInto(proxy()!, 'c');
+        expect(sendInput).toHaveBeenLastCalledWith('\x03');
+      });
+
+      test('on desktop there is no proxy and the textarea stays enabled', async () => {
         renderPane();
-        await waitFor(() => expect(field()).not.toBeNull());
+        await waitFor(() => expect(textarea()).not.toBeNull());
         await waitFor(() => expect(matchMediaMock).toHaveBeenCalled());
-        vi.useFakeTimers();
-        try {
-          fireEvent.keyDown(field(), { keyCode: 13 });
-          fireEvent.blur(field());
-          fireEvent.focus(field());
-          act(() => { vi.advanceTimersByTime(10); });
-          expect(field().value).toBe('');
-        } finally { vi.useRealTimers(); }
+        expect(proxy()).toBeNull();
+        expect(textarea().disabled).toBe(false);
       });
 
-      test('the gate follows the media query live: leaving touch empties the field, returning reseeds it', async () => {
+      test('the gate follows the media query live: leaving touch removes the proxy and re-enables the textarea', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        await waitFor(() => expect(proxy()).not.toBeNull());
         mqlMatches = false;
         act(() => mqlListeners.forEach((f) => f()));
-        expect(field().value).toBe('');
+        expect(proxy()).toBeNull();
+        expect(textarea().disabled).toBe(false);
         mqlMatches = true;
         act(() => mqlListeners.forEach((f) => f()));
-        expect(field().value).toBe(PLACEHOLDER);
+        expect(proxy()).not.toBeNull();
+        expect(textarea().disabled).toBe(true);
       });
 
-      test('a DEL for a deleted placeholder reaches the pty through onData', async () => {
+      test('the focus effect focuses the proxy on touch', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
-        vi.useFakeTimers();
-        try {
-          fireEvent(field(), new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true }));
-          field().value = '';
-          fireEvent(field(), new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
-          act(() => { vi.advanceTimersByTime(10); });
-          expect(termInput).toHaveBeenCalledWith('\x7f');
-          expect(sendInput).toHaveBeenCalledWith('\x7f');
-          expect(field().value).toBe(PLACEHOLDER);
-        } finally { vi.useRealTimers(); }
+        await waitFor(() => expect(document.activeElement).toBe(proxy()));
       });
     });
   });

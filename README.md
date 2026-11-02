@@ -10,7 +10,7 @@ A [code-conductor](https://github.com/UnmanagedCode/code-conductor) (cc) plugin:
 - Per-project shell history for bash and zsh, shared live between a project's shells.
 - Shells live in the plugin backend: a browser reload reattaches and replays screen and scrollback.
 - "Open terminal" in cc's project and worktree `⋮` menus opens (or reuses) that checkout's tab.
-- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane, and a hidden placeholder in the terminal's input so soft keyboards that ignore `autocapitalize` do not capitalize the first letter.
+- On touch devices, an extra-keys bar (Esc, Tab, one-shot/lockable Ctrl and Alt, arrows, a few symbols) under each pane, and a hidden touch input that takes the typing so soft keyboards do not suggest, autocorrect, auto-space or capitalize.
 - Projects on a System without terminal support are shown disabled with cc's reason.
 
 Details: [docs/features.md](docs/features.md).
@@ -66,8 +66,7 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 
 ## Known limitations
 
-- After a touch selection or a long-press with a selection, the helper field holds the selected text instead of the placeholder, so the next first letter may still be capitalized.
-- A soft-keyboard suggestion tap that rewrites an already-sent word sends garbage (xterm's offset arithmetic); with the placeholder the first word is included.
+- On a touch device a hardware keyboard sends only Enter, Backspace, arrows, Tab, Escape and Ctrl/Alt plus a character; iOS is untested for the touch input.
 - Ctrl/⌘+1…9 switch tabs only while focus is inside the plugin's frame, and never reach the shell.
 - Browsers that ignore `interactive-widget=resizes-content` (iOS Safari) overlay the soft keyboard instead of resizing the page, so it can cover the extra-keys bar.
 - Shells do not survive a restart of the plugin backend, of cc, or of a remote System's provider: their panes show `ended` with **Restart**.

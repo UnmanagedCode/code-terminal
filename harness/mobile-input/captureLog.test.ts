@@ -18,10 +18,15 @@ import {
   tally,
   txLine,
   verdict,
+  buildReport,
+  parseCaptureLog,
+  REPORT_LIMIT_BYTES,
+  txLine as tx,
   compLine,
   focusLine,
   type Snap,
 } from './captureLog';
+import FIXTURE from '../../frontend/src/terminal/fixtures/swiftkey-capture-log.txt?raw';
 
 // The n-th quoted string on a line, decoded: every string the page writes must survive JSON.parse.
 const quoted = (line: string, n = 0) => JSON.parse(line.match(/"(?:[^"\\]|\\.)*"/g)![n]) as string;
@@ -138,7 +143,19 @@ describe('step table and tally', () => {
 
   it('runs S1, S4 and S6 only for variant E', () => {
     expect(VARIANT_STEPS.E).toEqual(['S1', 'S4', 'S6']);
-    expect(VARIANT_STEPS.A).toHaveLength(6);
+    expect(VARIANT_STEPS.A).toHaveLength(7);
+    expect(VARIANT_STEPS.B).toHaveLength(6);
+  });
+
+  it('adds S7 for the shipped variant only: type past the start of the line, then d', () => {
+    expect(STEPS.find((s) => s.id === 'S7')!.want).toBe('d');
+    expect(VARIANT_STEPS.A.at(-1)).toBe('S7');
+    expect(tally(['=A.S7 got="d" want="d" PASS']).A).toBe(1);
+  });
+
+  it('writes the xterm focus-class flag on focus and blur lines when given', () => {
+    expect(focusLine(7, 'fo', { v: '', s0: 0, s1: 0 }, true)).toBe('7 fo v="" s=0,0 xf=1');
+    expect(focusLine(8, 'bl', { v: '', s0: 0, s1: 0 }, false)).toBe('8 bl v="" s=0,0 xf=0');
   });
 
   it('counts distinct steps with a result per variant, ignoring other lines', () => {
@@ -154,5 +171,103 @@ describe('step table and tally', () => {
     expect(t.A).toBe(2);
     expect(t.B).toBe(1);
     expect(t.C).toBe(0);
+  });
+});
+
+const FIXTURE_LINES = FIXTURE.split('\n');
+
+describe('parseCaptureLog', () => {
+  const snap: Snap = { v: 'xl', s0: 2, s1: 2 };
+
+  it('round-trips every record the formatter writes', () => {
+    const text = [
+      stepStart('A', 'S1', 'ls'),
+      focusLine(1, 'fo', snap, true),
+      keyLine(2, 'kd', 'Unidentified', '', 229, snap),
+      inputLine(3, 'bi', 'insertText', 'l"\x7f', false, snap),
+      inputLine(4, 'in', 'deleteContentBackward', null, true, snap),
+      compLine(5, 'cu', 'ko', snap),
+      snapLine(6, snap),
+      txLine(7, '\x7f\r'),
+      resultLine('A', 'S1', 'ls', 'ls'),
+    ].join('\n');
+    const [step] = parseCaptureLog(text);
+    expect(step).toMatchObject({ variant: 'A', id: 'S1', want: 'ls', verdict: 'PASS' });
+    expect(step.events).toEqual([
+      { ms: 1, kind: 'fo', v: 'xl', s0: 2, s1: 2, xf: true },
+      { ms: 2, kind: 'kd', key: 'Unidentified', code: '', keyCode: 229, v: 'xl', s0: 2, s1: 2 },
+      { ms: 3, kind: 'bi', inputType: 'insertText', data: 'l"\x7f', composing: false, v: 'xl', s0: 2, s1: 2 },
+      { ms: 4, kind: 'in', inputType: 'deleteContentBackward', data: null, composing: true, v: 'xl', s0: 2, s1: 2 },
+      { ms: 5, kind: 'cu', data: 'ko', v: 'xl', s0: 2, s1: 2 },
+      { ms: 6, kind: '~', v: 'xl', s0: 2, s1: 2 },
+      { ms: 7, kind: 'tx', bytes: '\x7f\r' },
+    ]);
+  });
+
+  it('groups the committed device log into its steps with their logged verdicts', () => {
+    const steps = parseCaptureLog(FIXTURE);
+    const ended = steps.filter((s) => s.verdict);
+    expect(ended).toHaveLength(27);
+    const e1 = steps.find((s) => s.variant === 'E' && s.id === 'S1')!;
+    expect(e1.want).toBe('ls -all.');
+    expect(e1.verdict).toBe('PASS');
+    expect(e1.events.at(-1)).toMatchObject({ kind: 'kd', key: 'Enter', keyCode: 13 });
+  });
+
+  it('keeps a step that never ended, without a verdict', () => {
+    const [step] = parseCaptureLog('@A.S1 want="ls"\n5 ~ v="" s=0,0');
+    expect(step.verdict).toBeUndefined();
+    expect(step.events).toHaveLength(1);
+  });
+});
+
+describe('buildReport', () => {
+  const step = (v: string, id: string, verdictWord: string, n: number) => [
+    `@${v}.${id} want="x"`,
+    ...Array.from({ length: n }, (_, i) => tx(i, `e${v}${id}-${i}`)),
+    `=${v}.${id} got="x" want="x" ${verdictWord}`,
+  ];
+  const size = (r: unknown) => new TextEncoder().encode(JSON.stringify(r)).length;
+
+  it('keeps every # @ = ! line and the events of FAIL steps only, in order', () => {
+    const lines = ['#cap v1', ...step('A', 'S1', 'PASS', 2), ...step('A', 'S2', 'FAIL', 3), ...step('A', 'S3', 'TRAIL', 2), '!A strip=no caps=no'];
+    const r = buildReport(lines);
+    expect(r.kind).toBe('swiftkey-capture');
+    expect(r.v).toBe(1);
+    expect(r.lines.filter((l) => /^[#@=!]/.test(l))).toHaveLength(1 + 3 * 2 + 1);
+    expect(r.lines.filter((l) => l.includes('eA'))).toEqual([0, 1, 2].map((i) => tx(i, `eAS2-${i}`)));
+  });
+
+  it('keeps the events of a step that never ended', () => {
+    const r = buildReport(['@A.S1 want="x"', tx(1, 'a')]);
+    expect(r.lines).toContain(tx(1, 'a'));
+  });
+
+  it('trims the oldest events of the failed step with most events to fit, and states how many', () => {
+    const lines = [...step('A', 'S1', 'FAIL', 300), ...step('B', 'S1', 'FAIL', 20)];
+    const limit = 4000;
+    expect(size({ kind: 'swiftkey-capture', v: 1, lines })).toBeGreaterThan(limit);
+    const r = buildReport(lines, limit);
+    expect(size(r)).toBeLessThanOrEqual(limit);
+    const a = r.lines.filter((l) => l.includes('eAS1-'));
+    expect(a.at(-1)).toContain('eAS1-299');
+    expect(r.lines.filter((l) => l.includes('eBS1-'))).toHaveLength(20);
+    const dropped = 300 - a.length;
+    expect(dropped).toBeGreaterThan(0);
+    const at = r.lines.indexOf('@A.S1 want="x"');
+    expect(r.lines[at + 1]).toBe(`… ${dropped} earlier events trimmed`);
+    // what survives is the newest contiguous tail
+    expect(a[0]).toContain(`eAS1-${dropped}"`);
+  });
+
+  it('throws when the kept lines alone exceed the limit', () => {
+    expect(() => buildReport(step('A', 'S1', 'FAIL', 1), 50)).toThrow(/limit/);
+  });
+
+  it('fits the committed device log under the report limit with all 27 verdicts', () => {
+    const r = buildReport(FIXTURE_LINES);
+    expect(size(r)).toBeLessThanOrEqual(REPORT_LIMIT_BYTES);
+    expect(REPORT_LIMIT_BYTES).toBe(32768);
+    expect(r.lines.filter((l) => l.startsWith('='))).toHaveLength(27);
   });
 });
