@@ -92,7 +92,12 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       setSize({ cols: t.cols, rows: t.rows });
       return { cols: t.cols, rows: t.rows };
     };
-    t.onData((d) => conn.current?.sendInput(mods.apply(d)));
+    t.onData((d) => {
+      const out = mods.apply(d);
+      // A modifier changed the bytes, so the touch field no longer matches the shell line.
+      if (out !== d) touchInput.current?.clear();
+      conn.current?.sendInput(out);
+    });
     t.onBinary((d) => conn.current?.sendInput(Uint8Array.from(d, (c) => c.charCodeAt(0))));
     t.onTitleChange((s) => setTitle(clampTitle(s)));
     void fontsReady().then(() => {
@@ -155,7 +160,10 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       return;
     }
     const t = term.current;
-    if (t?.element) t.input(keySequence(id, t.modes.applicationCursorKeysMode));
+    if (t?.element) {
+      t.input(keySequence(id, t.modes.applicationCursorKeysMode));
+      touchInput.current?.clear();
+    }
   }
 
   async function restart() {

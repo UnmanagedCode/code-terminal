@@ -44,6 +44,7 @@ vi.mock('./socket', () => ({
 
 const { TerminalPane } = await import('./TerminalPane');
 const { EXTRA_KEYS } = await import('./extraKeys');
+const { EMPTY_LINE, feedLine, lineText } = await import('../../../harness/mobile-input/captureLog');
 const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
 const fetchMock = vi.fn();
@@ -283,6 +284,37 @@ describe('TerminalPane', () => {
         fireEvent.click(key('Control'));
         typeInto(proxy()!, 'c');
         expect(sendInput).toHaveBeenLastCalledWith('\x03');
+        expect(proxy()!.value).toBe('');
+      });
+
+      const shell = () => lineText(feedLine(EMPTY_LINE, sendInput.mock.calls.map((c) => c[0]).join('')));
+      const deleteAll = (el: HTMLInputElement) => {
+        el.value = '';
+        fireEvent.input(el, { inputType: 'deleteWordBackward' });
+      };
+
+      test('a bar symbol key empties the field, so a later word-delete cannot remove more than was typed since', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'ls');
+        fireEvent.click(key('Dash'));
+        expect(proxy()!.value).toBe('');
+        typeInto(proxy()!, 'la');
+        deleteAll(proxy()!);
+        expect(shell()).toBe('ls-');
+      });
+
+      test('after a bar Ctrl+l the field is empty: no phantom character, and an insert at caret 0 stays clean', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'ab');
+        fireEvent.click(key('Control'));
+        typeInto(proxy()!, 'l');
+        expect(proxy()!.value).toBe('');
+        proxy()!.value = 'x';
+        proxy()!.setSelectionRange(0, 0);
+        fireEvent.input(proxy()!, { inputType: 'insertText', data: 'x' });
+        expect(sendInput.mock.calls.map((c) => c[0]).join('')).toBe('ab\x0cx');
       });
 
       test('on desktop there is no proxy and the textarea stays enabled', async () => {

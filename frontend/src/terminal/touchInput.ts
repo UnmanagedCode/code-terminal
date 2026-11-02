@@ -9,6 +9,7 @@
 // copies them into the keyboard's editor info when the field gains focus.
 import type { Terminal } from '@xterm/xterm';
 import { applyModifiers, keySequence, type ExtraKeyId } from './extraKeys';
+import { handleClipboardKey, type ClipboardLike } from './keys';
 import { disableTextAssist } from './softKeyboard';
 
 const DEL = '\x7f';
@@ -19,13 +20,16 @@ const NAMED_KEY: Record<string, ExtraKeyId> = {
 
 export interface TouchInput {
   focus(): void;
+  // Forget the field: call when bytes reached the shell by any route other than this input's own
+  // insert/delete diff, so a later edit never deletes more than was typed since.
+  clear(): void;
   dispose(): void;
 }
 
 const isHighSurrogate = (c: number) => c >= 0xd800 && c <= 0xdbff;
 
 // Call after `open()`.
-export function attachTouchInput(t: Terminal): TouchInput {
+export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard): TouchInput {
   const { textarea, element } = t;
   if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
 
@@ -47,8 +51,12 @@ export function attachTouchInput(t: Terminal): TouchInput {
   };
   place();
 
-  // The value already sent to the shell; the field mirrors it.
+  // The field's value as already sent to the shell since the last clear().
   let last = '';
+  const clear = () => {
+    el.value = '';
+    last = '';
+  };
 
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
@@ -57,13 +65,16 @@ export function attachTouchInput(t: Terminal): TouchInput {
     const n = Math.min(last.length, v.length);
     while (p < n && last[p] === v[p]) p++;
     if (p > 0 && isHighSurrogate(last.charCodeAt(p - 1))) p--;
-    send(DEL.repeat([...last.slice(p)].length));
-    send(v.slice(p));
+    const removed = [...last.slice(p)].length;
+    // Set before sending: a clear() triggered by the send itself must win.
     last = v;
+    send(DEL.repeat(removed));
+    send(v.slice(p));
     // A keyboard that mis-tracks the caret (it reports 0 on first focus) sends later characters
     // to the wrong place; moving the caret to the end makes Chrome resync the keyboard.
-    if (!(e as InputEvent).isComposing && (el.selectionStart !== v.length || el.selectionEnd !== v.length)) {
-      el.setSelectionRange(v.length, v.length);
+    const len = el.value.length;
+    if (!(e as InputEvent).isComposing && (el.selectionStart !== len || el.selectionEnd !== len)) {
+      el.setSelectionRange(len, len);
     }
   };
 
@@ -75,6 +86,10 @@ export function attachTouchInput(t: Terminal): TouchInput {
   const onKeyDown = (e: Event) => {
     const k = e as KeyboardEvent;
     if (k.isComposing || k.keyCode === 229) return;
+    if (handleClipboardKey(t, k, clipboard, clear)) {
+      k.preventDefault();
+      return;
+    }
     let out: string | null = null;
     if (k.key === 'Enter') out = '\r';
     else if (k.key === 'Backspace') out = k.keyCode === 8 && el.value === '' ? DEL : null;
@@ -85,12 +100,14 @@ export function attachTouchInput(t: Terminal): TouchInput {
     if (out === null) return;
     k.preventDefault();
     t.input(out);
+    clear();
   };
 
   const onPaste = (e: Event) => {
     e.preventDefault();
     e.stopPropagation(); // xterm also listens for paste on its element
     t.paste((e as ClipboardEvent).clipboardData?.getData('text/plain') ?? '');
+    clear();
   };
 
   // xterm keeps its focused state (cursor style, `focus` class, DECSET 1004 reports) through
@@ -125,14 +142,21 @@ export function attachTouchInput(t: Terminal): TouchInput {
 
   return {
     focus: () => { el.focus({ preventScroll: true }); },
+    clear,
     dispose() {
-      const hadFocus = document.activeElement === el;
+      // After `t.dispose()` (unmount order allows it) xterm's element is gone: only drop our own state.
+      const alive = element.isConnected;
+      const hadFocus = alive && document.activeElement === el;
       for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
       offData.dispose();
       offRender.dispose();
       el.remove();
       textarea.disabled = false;
-      if (hadFocus) t.focus();
+      if (hadFocus) {
+        // xterm still counts as focused through the relay; blur it first so t.focus() reports once.
+        textarea.dispatchEvent(new FocusEvent('blur'));
+        t.focus();
+      }
     },
   };
 }

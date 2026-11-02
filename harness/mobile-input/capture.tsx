@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { disableTextAssist } from '@/terminal/softKeyboard';
-import { attachTouchInput } from '@/terminal/touchInput';
+import { attachTouchInput, type TouchInput } from '@/terminal/touchInput';
 import { TOUCH_QUERY } from '@/terminal/useTouchDevice';
 import {
   EMPTY_LINE,
@@ -122,7 +122,7 @@ function Page() {
     let done = false;
     let last: Snap | null = null;
     let term: Terminal | undefined;
-    let touch: { dispose(): void } | undefined;
+    let touch: TouchInput | undefined;
     let dataSub: { dispose(): void } | undefined;
     const off: (() => void)[] = [];
 
@@ -259,6 +259,7 @@ function Page() {
       t0 = performance.now();
       done = false;
       if (setup.kind === 'input') field.value = '';
+      touch?.clear();
       sync();
     };
     sessionRef.current = { redo, blur: () => field.blur() };

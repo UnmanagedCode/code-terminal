@@ -16,6 +16,8 @@ let ta: HTMLTextAreaElement;
 let bytes: string[];
 let touch: ReturnType<typeof attachTouchInput>;
 
+let clipboard: { writeText: ReturnType<typeof vi.fn<() => Promise<void>>>; readText: ReturnType<typeof vi.fn<() => Promise<string>>> };
+
 function setup(opts: { focusTextarea?: boolean } = {}) {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -25,7 +27,8 @@ function setup(opts: { focusTextarea?: boolean } = {}) {
   if (opts.focusTextarea) ta.focus();
   bytes = [];
   t.onData((d) => bytes.push(d));
-  touch = attachTouchInput(t);
+  clipboard = { writeText: vi.fn(() => Promise.resolve()), readText: vi.fn(() => Promise.resolve('')) };
+  touch = attachTouchInput(t, clipboard);
   el = t.element!.querySelector<HTMLInputElement>('.xterm-touch-input')!;
 }
 
@@ -57,7 +60,15 @@ const typeText = (s: string) => {
 };
 const press = (key: string, keyCode: number, init: Record<string, unknown> = {}) => fire('keydown', { key, keyCode, ...init });
 const writeMode = (seq: string) => { t.write(seq); advance(); };
-const upToEnter = (b: string) => b.slice(0, b.indexOf('\r'));
+// What a shell line would hold after these bytes.
+const shellLine = () => lineText(feedLine(EMPTY_LINE, sent()));
+// A keyboard edit that lands at the caret, wherever it is.
+const typeAtCaret = (s: string) => {
+  const i = el.selectionStart ?? el.value.length;
+  el.value = el.value.slice(0, i) + s + el.value.slice(i);
+  el.setSelectionRange(i + s.length, i + s.length);
+  fire('input', { inputType: 'insertText', data: s });
+};
 
 describe('replaying device logs into the proxy', () => {
   test('a keyboard with no suggestions (variant E) sends exactly the wanted line and CR', () => {
@@ -70,7 +81,7 @@ describe('replaying device logs into the proxy', () => {
     expect(step('E', 'S1').want).toBe('ls -all.');
   });
 
-  test('every B to E step gives the same bytes however the timers batch, and the shell line is the field at Enter', () => {
+  test('every B to E step replays to the same bytes whether timers run per event or at the end (nothing is timer-dependent), and the shell line is the field at Enter', () => {
     let checked = 0;
     for (const s of STEPS.filter((x) => x.variant !== 'A')) {
       const enter = [...s.events].reverse().find((e): e is Extract<LogEvent, { key: string }> => e.kind === 'kd' && e.key === 'Enter');
@@ -166,7 +177,7 @@ describe('caret', () => {
     replay(open.slice(0, firstIn + 1));
     expect([el.selectionStart, el.selectionEnd]).toEqual([el.value.length, el.value.length]);
     bytes = [];
-    typeText('s');
+    typeAtCaret('s');
     expect(el.value.endsWith('s')).toBe(true);
     expect(sent()).toBe('s');
   });
@@ -224,13 +235,13 @@ describe('paste', () => {
     return ev;
   };
 
-  test('pastes through xterm exactly once, keeping line breaks, and leaves the field alone', () => {
+  test('pastes through xterm exactly once, keeping line breaks, and empties the field it no longer mirrors', () => {
     typeText('q');
     bytes = [];
     const ev = paste('a\nb');
     expect(ev.defaultPrevented).toBe(true);
     expect(sent()).toBe('a\rb');
-    expect(el.value).toBe('q');
+    expect(el.value).toBe('');
   });
 
   test('is bracketed when the application asked for it', () => {
@@ -351,5 +362,107 @@ describe('focus', () => {
   test('a focus method on the handle focuses the proxy', () => {
     touch.focus();
     expect(document.activeElement).toBe(el);
+  });
+});
+
+describe('bytes that reach the shell by another route empty the field', () => {
+  const del = (next: string) => {
+    el.value = next;
+    el.setSelectionRange(next.length, next.length);
+    fire('input', { inputType: 'deleteWordBackward' });
+  };
+
+  test('clear() empties the field and what was sent, so a later word-delete removes only what was typed since', () => {
+    typeText('ls');
+    t.input('-'); // a bar key
+    touch.clear();
+    expect(el.value).toBe('');
+    typeText('la');
+    del('');
+    expect(shellLine()).toBe('ls-');
+  });
+
+  test('paste: a later word-delete cannot reach into the text typed before the paste', () => {
+    typeText('ab');
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', { value: { getData: () => 'XYZ' } });
+    el.dispatchEvent(ev);
+    expect(el.value).toBe('');
+    typeText('c');
+    del('');
+    expect(shellLine()).toBe('abXYZ');
+  });
+
+  test('a control sequence the proxy sends itself (Ctrl+L, arrows, Tab) empties the field; a later insert at caret 0 is not mixed with old text', () => {
+    typeText('ab');
+    press('l', 76, { ctrlKey: true });
+    expect(el.value).toBe('');
+    el.value = 'x';
+    el.setSelectionRange(0, 0); // the logged s=0,0 shape
+    fire('input', { inputType: 'insertText', data: 'x' });
+    expect(sent()).toBe('ab\x0cx');
+    expect(el.value).toBe('x');
+    for (const [k, c] of [['ArrowLeft', 37], ['Tab', 9]] as const) {
+      press(k, c);
+      expect(el.value, k).toBe('');
+      typeText('q');
+    }
+  });
+
+  test('a clear() inside the send of an edit is not undone by that edit', () => {
+    const off = t.onData((d) => { if (d === 'c') touch.clear(); }); // what the pane does for a modified chunk
+    typeText('ab');
+    typeText('c');
+    off.dispose();
+    expect(el.value).toBe('');
+    typeText('d');
+    expect(sent()).toBe('abcd');
+  });
+});
+
+describe('clipboard keys on the proxy', () => {
+  const clip = (code: string, key: string) => press(key, code === 'KeyC' ? 67 : 86, { code, ctrlKey: true, shiftKey: true });
+
+  test('Ctrl+Shift+C copies the selection and sends nothing', () => {
+    // xterm's selection needs a laid-out buffer; the key handler only reads the two accessors.
+    vi.spyOn(t, 'hasSelection').mockReturnValue(true);
+    vi.spyOn(t, 'getSelection').mockReturnValue('hello');
+    typeText('q');
+    bytes = [];
+    const ev = clip('KeyC', 'C');
+    expect(clipboard.writeText).toHaveBeenCalledWith('hello');
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('');
+  });
+
+  test('Ctrl+Shift+V pastes the clipboard text, bracketed when asked, and empties the field', async () => {
+    writeMode('\x1b[?2004h');
+    clipboard.readText.mockResolvedValue('pasted');
+    typeText('q');
+    bytes = [];
+    const ev = clip('KeyV', 'V');
+    await vi.waitFor(() => expect(sent()).toBe('\x1b[200~pasted\x1b[201~'));
+    expect(ev.defaultPrevented).toBe(true);
+    expect(el.value).toBe('');
+  });
+});
+
+describe('dispose', () => {
+  test('hands focus back to xterm without a duplicate focus-in report', () => {
+    writeMode('\x1b[?1004h');
+    bytes = [];
+    el.focus();
+    touch.dispose();
+    expect(sent()).toBe('\x1b[I\x1b[O\x1b[I');
+    expect(t.element!.classList.contains('focus')).toBe(true);
+    touch = attachTouchInput(t, clipboard);
+  });
+
+  test('is safe after the terminal itself was disposed', () => {
+    el.focus();
+    t.dispose();
+    expect(() => touch.dispose()).not.toThrow();
+    t = new Terminal(); // afterEach disposes it
+    touch = attachTouchInput((t.open(document.body), t), clipboard);
   });
 });

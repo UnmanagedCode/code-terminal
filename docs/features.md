@@ -79,7 +79,7 @@
 
 ## Copy and paste
 
-- **Ctrl+Shift+C** copies the selection; **Ctrl+Shift+V** pastes (bracketed when the program asked for it). **Ctrl+C** stays `^C`.
+- **Ctrl+Shift+C** copies the selection (on touch too, through the touch input); **Ctrl+Shift+V** pastes (bracketed when the program asked for it). **Ctrl+C** stays `^C`.
 - The browser's context menu and **Cmd+C/V** on macOS work too.
 
 ## Shell history
@@ -100,8 +100,8 @@
 - **Gate:** the bar renders only when `matchMedia('(hover: none)')` matches (`TOUCH_QUERY` in `useTouchDevice.ts`), and follows changes live. Desktop never has it in the DOM.
 - **Soft keyboard:** `disableTextAssist` sets `autocapitalize=off`, `autocorrect=off`, `autocomplete=off`, `spellcheck=false` on every terminal's helper textarea and on the touch input below. SwiftKey ignores `autocapitalize` on a textarea, hence the touch input.
 - **Touch input** (touch only, `attachTouchInput` in `touchInput.ts`): typing goes through a hidden `<input>` (`.xterm-touch-input`, accessible name "Terminal input") created as `type=password` and switched to `type=text`, which keeps soft keyboards from showing suggestions, autocorrecting, auto-spacing or capitalizing. xterm's helper textarea is disabled while it is attached; focus and blur are relayed to xterm so the cursor style and DECSET 1004 reports still work.
-  - **Bytes:** every `input` event sends `\x7f` per deleted character, then the inserted text, at once; the field mirrors the shell line. Enter sends `\r` and empties the field, as does Ctrl+C (`\x03`).
-  - **Keys:** Backspace on an empty field → `\x7f`; arrows (DECCKM aware), Tab, Escape; Ctrl/Alt plus one character. Paste goes through `Terminal.paste` (bracketed when the application asked, newlines kept) and leaves the field alone.
+  - **Bytes:** every `input` event sends `\x7f` per deleted character, then the inserted text, at once. The field only knows what the keyboard typed since it was last emptied: `TouchInput.clear()` empties it whenever bytes reach the shell another way (bar keys, paste, Ctrl+Shift+V, a Ctrl/Alt-modified chunk, arrows, Tab, Escape, Ctrl/Alt+character), and Enter and Ctrl+C (`\x03`) empty it too, so a later delete never removes more than was typed since.
+  - **Keys:** Backspace on an empty field → `\x7f`; arrows (DECCKM aware), Tab, Escape; Ctrl/Alt plus one character. Paste goes through `Terminal.paste` (bracketed when the application asked, newlines kept). Ctrl+Shift+C / V work on the proxy too (`handleClipboardKey` in `keys.ts`, shared with xterm's textarea).
   - **Limits:** a hardware keyboard on a touch device loses F-keys, Home/End and Page Up/Down; swipe typing and voice input depend on the keyboard's mode for this field type; iOS is untested. Follows the gate live: leaving touch removes the input and re-enables the textarea.
 - **Device test page:** `harness/mobile-input/` is a standalone page with a real xterm using the production touch setup, the bar, a local echo, the exact bytes sent and an event trace of the touch input. Build: `npx vite build --config harness/mobile-input/vite.config.ts` (output `harness/mobile-input/dist/`). Checklist, run on a phone:
   1. Type `ls` straight after tapping the box: it appears in order. No suggestion strip, no capital first letter, also after switching apps and back.
