@@ -108,6 +108,14 @@
   5. Bar Ctrl then `c` logs `\x03`; long-press paste logs the pasted text only.
   6. **Autocorrect on space:** at a fresh prompt type a misspelled first word and a space (`gti status`), then a correct one (`ls `). SwiftKey sees the placeholder as part of the first word (`xgti`) and may rewrite it on space; the log must show exactly what was sent.
   7. `?p=200b` is a diagnostic only: on a device (Android 10, Chrome, SwiftKey) U+200B does not stop SwiftKey's capitalization, so `PLACEHOLDER` stays `x`.
+- **Event-capture page:** `capture.html` in the same build (`harness/mobile-input/dist/capture.html`) records every keyboard and input event on the field, the bytes xterm sends, and the field after each event settles, for the SwiftKey `.` bug. Pick a variant with the `A`–`E` buttons (`?v=A` in the URL):
+  - `A`: xterm helper textarea with the text-assist attributes and the caps placeholder (as shipped).
+  - `B`: the same attributes, no placeholder.
+  - `C` / `D`: `B` plus `inputmode="email"` / `inputmode="url"`.
+  - `E`: a plain `<input>`, created as a password field and switched to text; no xterm and no bytes.
+  - Tap the black box to focus, then type the step shown (`ls -all.`, `ls -all x.`, `x.`, `echo hi  there`, `cd ..`, `teh cat`) with keys only, then press Enter. `E` runs steps `S1`, `S4`, `S6` only. Each step logs one `=` result (`PASS`, `TRAIL` for a trailing-space-only difference, `FAIL`).
+  - Answer "Suggestion strip shown?" and "First letter capitalized?" after the first step; the last step logs one `!` line with the answers.
+  - **Copy log** copies the whole log (headers first) to the clipboard, or selects the read-only box below it. The log persists in `localStorage` under `capture-log` across reloads; **Clear log** asks first.
 - **Bar** (`role="toolbar"`, "Extra keys", under each pane; keys from `EXTRA_KEYS`): Esc, Tab, Ctrl, Alt, `~ | / -`, ← ↑ ↓ →.
 - **Focus:** a tap never blurs the terminal (the soft keyboard stays up) and focuses the tapped pane.
 - **Ctrl/Alt:** one tap arms the next key (one-shot); a second tap within `DOUBLE_TAP_MS` locks it; tapping a locked or armed-but-slow modifier clears it. Armed state shows as `aria-pressed` and `data-mod-state` (`once`/`locked`). They apply to bar keys and to characters typed on the soft keyboard.

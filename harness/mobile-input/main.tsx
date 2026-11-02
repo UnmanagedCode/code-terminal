@@ -100,6 +100,7 @@ function Page() {
   return (
     <main>
       <h1>Caps placeholder device test</h1>
+      <a href="./capture.html">Event capture →</a>
       <nav>
         {Object.keys(CANDIDATES).map((k) => <a key={k} href={`?p=${k}`} className={k === choice ? 'on' : ''}>?p={k}</a>)}
       </nav>
