@@ -53,13 +53,33 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
 
   // The field's value as already sent to the shell since the last clear().
   let last = '';
-  const clear = () => {
+  let composing = false;
+  // A clear() that arrived mid-composition: the field is never written while composing, so it is
+  // applied when the composition ends.
+  let pendingClear = false;
+  const wipe = () => {
     el.value = '';
     last = '';
+  };
+  const clear = () => {
+    if (composing) pendingClear = true;
+    else wipe();
+  };
+  // While a clear is pending the shell holds bytes the composition knows nothing about, so its
+  // updates are not mirrored (a diff from `last` would resend text or delete the wrong characters).
+  // At the end, only the part of the final text beyond what was already sent goes out; a
+  // composition that no longer extends it sends nothing.
+  const endComposition = () => {
+    composing = false;
+    if (!pendingClear) return;
+    pendingClear = false;
+    if (el.value.startsWith(last)) send(el.value.slice(last.length));
+    wipe();
   };
 
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
+    if (pendingClear) return;
     const v = el.value;
     let p = 0;
     const n = Math.min(last.length, v.length);
@@ -114,7 +134,12 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   // events on its textarea, which is disabled and so can never gain focus itself.
   const relay = (type: 'focus' | 'blur') => () => { textarea.dispatchEvent(new FocusEvent(type)); };
   const onFocus = relay('focus');
-  const onBlur = relay('blur');
+  const relayBlur = relay('blur');
+  // An IME may cancel a composition on blur without `compositionend`; stuck state would block clears.
+  const onBlur = () => {
+    relayBlur();
+    if (composing) endComposition();
+  };
   const onMouseDown = () => { el.focus({ preventScroll: true }); };
 
   const listeners: [EventTarget, string, (e: Event) => void][] = [
@@ -123,6 +148,8 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     [el, 'keydown', onKeyDown],
     [el, 'paste', onPaste],
     [el, 'focus', onFocus],
+    [el, 'compositionstart', () => { composing = true; }],
+    [el, 'compositionend', endComposition],
     [el, 'blur', onBlur],
     [element, 'mousedown', onMouseDown],
   ];

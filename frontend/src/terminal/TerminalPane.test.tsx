@@ -304,6 +304,22 @@ describe('TerminalPane', () => {
         expect(shell()).toBe('ls-');
       });
 
+      test('a modifier-changed chunk mid-composition leaves the field alone until compositionend', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        fireEvent.compositionStart(proxy()!);
+        fireEvent.click(key('Control'));
+        proxy()!.value = 'a';
+        fireEvent.input(proxy()!, { inputType: 'insertCompositionText', data: 'a', isComposing: true });
+        expect(sendInput).toHaveBeenLastCalledWith('\x01');
+        expect(proxy()!.value).toBe('a');
+        proxy()!.value = 'ab';
+        fireEvent.input(proxy()!, { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+        fireEvent.compositionEnd(proxy()!, { data: 'ab' });
+        expect(proxy()!.value).toBe('');
+        expect(sendInput.mock.calls.map((c) => c[0]).join('')).toBe('\x01b');
+      });
+
       test('after a bar Ctrl+l the field is empty: no phantom character, and an insert at caret 0 stays clean', async () => {
         await renderTouch();
         await waitFor(() => expect(proxy()).not.toBeNull());

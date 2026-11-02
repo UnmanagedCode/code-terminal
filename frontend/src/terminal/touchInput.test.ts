@@ -466,3 +466,59 @@ describe('dispose', () => {
     touch = attachTouchInput((t.open(document.body), t), clipboard);
   });
 });
+
+describe('clear() during a composition', () => {
+  const comp = (value: string) => {
+    el.value = value;
+    el.setSelectionRange(value.length, value.length);
+    fire('input', { inputType: 'insertCompositionText', data: value, isComposing: true });
+  };
+
+  test('a bar key mid-composition writes nothing to the field until compositionend, and no composed text is sent twice', () => {
+    fire('compositionstart', { data: '' });
+    comp('に');
+    t.input('-'); // the bar key
+    touch.clear(); // what the pane does after it
+    expect(el.value).toBe('に');
+    comp('にほ');
+    expect(sent()).toBe('に-'); // not mirrored while the clear is pending
+    fire('compositionend', { data: 'にほ' });
+    expect(sent()).toBe('に-ほ'); // only the part beyond what the shell already has
+    expect(el.value).toBe('');
+    typeText('x');
+    expect(shellLine()).toBe('に-ほx');
+  });
+
+  test('a rewritten composition that no longer extends what was sent adds nothing at compositionend', () => {
+    fire('compositionstart', { data: '' });
+    comp('ab');
+    touch.clear();
+    comp('Xb');
+    fire('compositionend', { data: 'Xb' });
+    expect(sent()).toBe('ab');
+    expect(el.value).toBe('');
+  });
+
+  test('an async paste landing mid-composition writes nothing to the field until compositionend', async () => {
+    clipboard.readText.mockResolvedValue('PASTE');
+    fire('compositionstart', { data: '' });
+    comp('に');
+    press('V', 86, { code: 'KeyV', ctrlKey: true, shiftKey: true });
+    await vi.waitFor(() => expect(sent()).toBe('にPASTE'));
+    expect(el.value).toBe('に');
+    fire('compositionend', { data: 'に' });
+    expect(sent()).toBe('にPASTE');
+    expect(el.value).toBe('');
+  });
+
+  test('a blur that ends the composition without compositionend still applies the pending clear', () => {
+    fire('compositionstart', { data: '' });
+    comp('a');
+    touch.clear();
+    el.focus();
+    el.blur();
+    expect(el.value).toBe('');
+    typeText('b');
+    expect(sent()).toBe('ab');
+  });
+});
