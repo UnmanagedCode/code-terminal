@@ -77,7 +77,7 @@ $CONDUCTOR_PLUGIN_DATA_DIR/             (mode 0700 dirs, 0600 files)
 $HOME/.local/state/code-terminal/       same shell/ and history/ on any other System
 ```
 
-- The plugin creates the data dir (0700) on first write; cc never touches it.
+- The plugin creates the data dir (0700): the boot migration creates its missing parent chain (`plugins/data`) when it moves a legacy store in; otherwise the first layout write or shell install creates it. cc never touches it.
 - Project and worktree names become path segments only after `validProjectName` (`lib/shellLaunch.js`): cc's name rule, never `.` or `..`.
 - Sessions are memory only.
 

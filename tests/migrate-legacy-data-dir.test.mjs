@@ -52,7 +52,8 @@ test('no legacy dir, or no projects root: a no-op', () => {
   assert.deepEqual(s.lines, []);
 });
 
-// Invariant: the whole legacy store (layouts, history, installed integration) arrives intact, modes kept, readable by the layout store.
+// Invariant: the whole legacy store (layouts, history, installed integration) arrives intact, modes kept, readable by the layout store;
+// the parent dirs the migration itself creates are private (0700).
 test('a legacy store moves whole into a missing data dir and parent', () => {
   const s = withLog(setup());
   seed(s.legacy);
@@ -64,6 +65,9 @@ test('a legacy store moves whole into a missing data dir and parent', () => {
   assert.equal(mode(path.join(s.dataDir, 'history')), 0o700);
   assert.equal(mode(path.join(s.dataDir, 'layouts', 'alpha', 'main.json')), 0o600);
   assert.equal(fs.existsSync(path.join(s.dataDir, 'shell', 'abc', '.complete')), true);
+  for (const d of ['.code-conductor', '.code-conductor/plugins', '.code-conductor/plugins/data']) {
+    assert.equal(mode(path.join(s.root, d)), 0o700, d);
+  }
   assert.equal(s.lines.length, 1);
   assert.ok(s.lines[0].includes(s.legacy) && s.lines[0].includes(s.dataDir));
   return createLayoutStore(s.dataDir).get({ project: 'alpha', worktree: null }).then((t) => assert.deepEqual(t, TREE));
@@ -90,7 +94,7 @@ test('idempotent: a second run, and a populated data dir with no legacy, change 
   assert.equal(s.lines.length, 1);
 });
 
-// Invariant: when both stores hold data the migration refuses and touches neither (no data is merged or lost).
+// Invariant: when both stores hold data the migration refuses, tells the user what to do by hand, and touches neither (no data is merged or lost).
 test('a non-empty data dir with a legacy dir present throws and leaves both untouched', () => {
   const s = withLog(setup());
   seed(s.legacy);
@@ -98,7 +102,7 @@ test('a non-empty data dir with a legacy dir present throws and leaves both unto
   fs.writeFileSync(path.join(s.dataDir, 'other'), 'x');
   const a = snapshot(s.legacy);
   const b = snapshot(s.dataDir);
-  assert.throws(() => run(s), (e) => e.message.includes(s.legacy) && e.message.includes(s.dataDir));
+  assert.throws(() => run(s), (e) => e.message.includes(s.legacy) && e.message.includes(s.dataDir) && e.message.includes('merge or remove one by hand'));
   assert.deepEqual(snapshot(s.legacy), a);
   assert.deepEqual(snapshot(s.dataDir), b);
 });
@@ -109,5 +113,17 @@ test('a legacy path that is a file throws and nothing moves', () => {
   fs.writeFileSync(s.legacy, 'not a dir');
   assert.throws(() => run(s), (e) => e.message.includes(s.legacy));
   assert.equal(fs.readFileSync(s.legacy, 'utf8'), 'not a dir');
+  assert.equal(fs.existsSync(s.dataDir), false);
+});
+
+// Invariant: a symlinked legacy path is refused even when it points at a directory (lstat, not stat); nothing moves.
+test('a legacy path that is a symlink to a directory throws and nothing moves', () => {
+  const s = withLog(setup());
+  const target = path.join(s.root, 'elsewhere');
+  seed(target);
+  fs.symlinkSync(target, s.legacy);
+  assert.throws(() => run(s), (e) => e.message.includes(s.legacy));
+  assert.equal(fs.lstatSync(s.legacy).isSymbolicLink(), true);
+  assert.equal(fs.readFileSync(path.join(target, 'history', 'alpha'), 'utf8'), 'ls\n');
   assert.equal(fs.existsSync(s.dataDir), false);
 });

@@ -76,3 +76,20 @@ test('legacy plus an absent data dir is moved before the backend listens', async
     await fake.close?.();
   }
 });
+
+// Invariant: standalone boot (no CONDUCTOR_URL) listens and never migrates, even with a legacy dir under PROJECTS_ROOT.
+test('standalone boot listens and leaves a legacy dir untouched', async () => {
+  const root = tmpDir();
+  const legacy = path.join(root, '.code-terminal');
+  fs.mkdirSync(path.join(legacy, 'history'), { recursive: true });
+  fs.writeFileSync(path.join(legacy, 'history', 'alpha'), 'ls\n');
+  const r = boot({ PROJECTS_ROOT: root, PORT: String(await freePort()) }, (o) => /listening/.test(o));
+  try {
+    await r.done;
+    assert.match(r.stdout, /listening/);
+    assert.equal(fs.readFileSync(path.join(legacy, 'history', 'alpha'), 'utf8'), 'ls\n');
+    assert.deepEqual(fs.readdirSync(root), ['.code-terminal']);
+  } finally {
+    r.child.kill('SIGKILL');
+  }
+});
