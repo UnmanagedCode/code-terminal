@@ -12,7 +12,7 @@
     {
       "name": "frontend",
       "runner": "vitest",
-      "tests": ["frontend/src/**/*.test.ts", "frontend/src/**/*.test.tsx"],
+      "tests": ["frontend/src/**/*.test.ts", "frontend/src/**/*.test.tsx", "harness/mobile-input/**/*.test.ts"],
       "baselineCommand": "npx vitest run --config frontend/vitest.config.ts --reporter=json --outputFile=\"$CODE_MUTANT_REPORT_DIR/vitest.json\"",
       "testCommand": "npx vitest run --config frontend/vitest.config.ts --reporter=json --outputFile=\"$CODE_MUTANT_REPORT_DIR/vitest.json\" {tests}"
     }

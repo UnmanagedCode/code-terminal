@@ -114,7 +114,7 @@ describe('replaying device logs into the proxy', () => {
 });
 
 describe('Enter', () => {
-  test('sends exactly CR, clears the field, ignores the line-break edit that follows, and the next typing starts empty', () => {
+  test('sends exactly CR, clears the field, sends nothing for the line-break beforeinput/keyup that follow, and the next typing starts empty', () => {
     typeText('ls');
     const enter = press('Enter', 13);
     expect(enter.defaultPrevented).toBe(true);
@@ -579,5 +579,52 @@ describe('an unclosed composition (SwiftKey leaves empty ones without compositio
     bytes = [];
     typeText('a');
     expect(sent()).toBe('a');
+  });
+});
+
+describe('key handling edge cases', () => {
+  test('Backspace on a non-empty field is left to the browser: not prevented, nothing sent by the keydown, and the following input diff keeps shell and field equal', () => {
+    typeText('ab');
+    bytes = [];
+    const ev = press('Backspace', 8);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(sent()).toBe('');
+    el.value = 'a';
+    el.setSelectionRange(1, 1);
+    fire('input', { inputType: 'deleteContentBackward' });
+    expect(sent()).toBe('\x7f');
+    expect(el.value).toBe('a');
+  });
+
+  test('Alt plus a character from the proxy itself sends ESC then the character', () => {
+    const ev = press('c', 67, { altKey: true });
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('\x1bc');
+  });
+
+  test('a keydown flagged isComposing sends nothing even when its keyCode is not 229', () => {
+    typeText('ab');
+    bytes = [];
+    for (const [key, code] of [['Enter', 13], ['Backspace', 8], ['ArrowLeft', 37]] as const) {
+      const ev = press(key, code, { isComposing: true });
+      expect(ev.defaultPrevented, key).toBe(false);
+    }
+    expect(sent()).toBe('');
+    expect(el.value).toBe('ab');
+  });
+
+  test('a composition rewritten to something longer that no longer extends what was sent adds nothing at compositionend', () => {
+    fire('compositionstart', { data: '' });
+    const comp = (v: string) => {
+      el.value = v;
+      el.setSelectionRange(v.length, v.length);
+      fire('input', { inputType: 'insertCompositionText', data: v, isComposing: true });
+    };
+    comp('ab');
+    touch.clear();
+    comp('Xbc');
+    fire('compositionend', { data: 'Xbc' });
+    expect(sent()).toBe('ab');
+    expect(el.value).toBe('');
   });
 });
