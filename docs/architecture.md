@@ -16,7 +16,8 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 
 | Module | Responsibility |
 |---|---|
-| `config.js` | `PORT`, `CONDUCTOR_URL`, `PROJECTS_ROOT` → `{port, conductorUrl, dataDir}`; standalone when either var is unset |
+| `config.js` | `PORT`, `CONDUCTOR_URL`, `CONDUCTOR_PLUGIN_DATA_DIR` → `{port, conductorUrl, dataDir}`; standalone without `CONDUCTOR_URL`; throws when `CONDUCTOR_URL` is set without an absolute data dir |
+| `migrateLegacyDataDir.js` | run at boot before the store opens; moves a legacy store found in the projects root into the data dir; idempotent; refuses a non-empty data dir |
 | `requestGuard.js` | `requestRefusal`: the Origin/Host rule for upgrades and API requests |
 | `securityHeaders.js` | `CSP` and `SECURITY_HEADERS`, sent on every response |
 | `refusal.js` | `Refusal`: a status + `{code, error}`, cc's or the plugin's |
@@ -66,7 +67,7 @@ cc is only the byte pipe: the backend owns sessions, scrollback and reattach. A 
 ## On-disk state
 
 ```
-$PROJECTS_ROOT/.code-terminal/          (mode 0700 dirs, 0600 files)
+$CONDUCTOR_PLUGIN_DATA_DIR/             (mode 0700 dirs, 0600 files)
 ├── layouts/<project>/main.json         the main checkout's layout tree
 │   └── worktrees/<worktree>.json       one per worktree
 ├── shell/<hash>/                       installed integration (local System)
@@ -76,6 +77,7 @@ $PROJECTS_ROOT/.code-terminal/          (mode 0700 dirs, 0600 files)
 $HOME/.local/state/code-terminal/       same shell/ and history/ on any other System
 ```
 
+- The plugin creates the data dir (0700) on first write; cc never touches it.
 - Project and worktree names become path segments only after `validProjectName` (`lib/shellLaunch.js`): cc's name rule, never `.` or `..`.
 - Sessions are memory only.
 
@@ -116,10 +118,11 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | backend | `tests/*.test.mjs` | `npm run test:server` | node:test against `tests/fakeCc.mjs` (http + ws stand-in for cc, injected as `conductorUrl`); `tests/helpers.mjs` sets Host/Origin freely |
 | shell history | `tests/shell-history.test.mjs` | in the backend suite | real `bash`/`zsh` from PATH over pipes, temp HOME with hostile dotfiles; skips a shell that is absent |
 | frontend | `frontend/src/**/*.test.ts(x)` | `npm run test:web` | vitest + happy-dom; xterm is mocked in `TerminalPane.test.tsx`; `palette.test.ts` pins cc's tokens |
+| config, boot, migration | `tests/config.test.mjs`, `tests/migrate-legacy-data-dir.test.mjs`, `tests/boot.test.mjs` | in the backend suite | `loadConfig` rules, the boot-time store move, and `node server.js` exit/listen behaviour in fixture dirs |
 | real cc | `tests/integration/*.test.mjs` | `RUN_REAL_CC=1 npm run test:server` | skipped otherwise; each file boots its own scratch cc |
 | visual | `harness/playwright/scenarios/*.mjs` (`split`, `reload`, `history`, `untrusted-output`, `tabs`, `menu`, `mobile`) | `node harness/playwright/run.mjs [scenario…]` | needs `CC_PROJECTS_ROOT`; a scenario may export `contextOptions`, merged into `newContext` (`mobile` uses a 360×740 touch viewport); fails on any CSP violation, page error or dialog; screenshots in `harness/playwright/out/` |
 
 - **Phone test page:** `harness/mobile-input/` (own `vite.config.ts`, output `dist/` ignored) is built and published by hand to try soft-keyboard changes on a device; it is not run in CI. `capsPlaceholder.test.ts` drives the real `@xterm/xterm` under happy-dom (fake timers, Chrome-Android-shaped event sequences).
-- **Scratch cc** (`harness/scratch-cc.mjs`): `git clone --no-hardlinks` of `$CC_PROJECTS_ROOT/code-conductor`, checked out at `CC_COMMIT` (which must understand every manifest key the plugin uses: cc rejects unknown top-level keys), `node_modules` symlinked; started by its `scripts/run-isolated.sh` with a free port, its own root and a temp `HOME` in a sanitized environment; this worktree's tracked and unignored files copied into a fresh repo, built, adopted, enabled and started; projects `alpha` and `beta` created. `createWorktree` makes a worktree through cc's MCP `create_worktree`. `addProviderProject` registers a System launched with cc's `referenceProvider.ts` (optionally `--no-pty`). Teardown stops the plugin and kills only the cc pid whose `/proc` cwd and environment prove it is the scratch one (or, once cc is gone, the plugin process group whose cwd is the scratch copy). `KEEP_SCRATCH=1` keeps the temp dir.
+- **Scratch cc** (`harness/scratch-cc.mjs`): `git clone --no-hardlinks` of `$CC_PROJECTS_ROOT/code-conductor`, checked out at `CC_COMMIT` (which must understand every manifest key the plugin uses: cc rejects unknown top-level keys, and must pass `CONDUCTOR_PLUGIN_DATA_DIR`; the scratch's value is `scratch.dataDir`), `node_modules` symlinked; started by its `scripts/run-isolated.sh` with a free port, its own root and a temp `HOME` in a sanitized environment; this worktree's tracked and unignored files copied into a fresh repo, built, adopted, enabled and started; projects `alpha` and `beta` created. `createWorktree` makes a worktree through cc's MCP `create_worktree`. `addProviderProject` registers a System launched with cc's `referenceProvider.ts` (optionally `--no-pty`). Teardown stops the plugin and kills only the cc pid whose `/proc` cwd and environment prove it is the scratch one (or, once cc is gone, the plugin process group whose cwd is the scratch copy). `KEEP_SCRATCH=1` keeps the temp dir.
 - **Manifest:** `tests/manifest.test.mjs` pins `menuItems`; the real-cc test `tests/integration/local.test.mjs` has cc's own validator accept the manifest. The `menu` scenario clicks cc's real row menus and checks the frame is not reloaded.
 - **Mutation:** `harness/mutation/` routes cover `tests/**/*.test.mjs` and `frontend/src/**/*.test.ts(x)`; the real-cc files skip there.

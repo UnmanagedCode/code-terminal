@@ -13,8 +13,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The cc commit whose `GET /api/terminal` and plugin manifest rules (`menuItems`) this plugin is built against.
-export const CC_COMMIT = '36c33602';
+// The cc commit whose `GET /api/terminal` and plugin manifest rules (`menuItems`) this plugin is built against;
+// it must also pass `CONDUCTOR_PLUGIN_DATA_DIR` to the plugin backend.
+export const CC_COMMIT = '32f0b60d';
 export const PLUGIN_ID = 'code-terminal';
 const BOOT_TIMEOUT_MS = 240_000;
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -106,7 +107,8 @@ export async function startScratchCc({ log = (m) => console.error(`[scratch-cc] 
   const pluginDir = path.join(tmp, 'plugin', PLUGIN_ID);
   let ccAlive = true;
   const scratch = {
-    url, port, tmp, home, ccDir, pluginDir, logFile, pid: child.pid, api,
+    url, port, tmp, home, ccDir, pluginDir, logFile,
+    dataDir: path.join(tmp, 'projects', '.code-conductor', 'plugins', 'data', PLUGIN_ID), pid: child.pid, api,
     pluginBase: `${url}/plugins/${PLUGIN_ID}/`,
     // The plugin backend's {port, pid}, remembered so teardown can stop it once cc is gone.
     plugin: null,
