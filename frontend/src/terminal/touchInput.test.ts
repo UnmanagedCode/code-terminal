@@ -501,9 +501,9 @@ describe('clear() during a composition', () => {
 
   test('an async paste landing mid-composition writes nothing to the field until compositionend', async () => {
     clipboard.readText.mockResolvedValue('PASTE');
-    fire('compositionstart', { data: '' });
-    comp('に');
     press('V', 86, { code: 'KeyV', ctrlKey: true, shiftKey: true });
+    fire('compositionstart', { data: '' }); // the clipboard read is still pending
+    comp('に');
     await vi.waitFor(() => expect(sent()).toBe('にPASTE'));
     expect(el.value).toBe('に');
     fire('compositionend', { data: 'に' });
@@ -520,5 +520,64 @@ describe('clear() during a composition', () => {
     expect(el.value).toBe('');
     typeText('b');
     expect(sent()).toBe('ab');
+  });
+});
+
+describe('an unclosed composition (SwiftKey leaves empty ones without compositionend)', () => {
+  // D.S5 ends with three `cs ""`/`cu ""` pairs and no `ce`, then Enter.
+  const beforeEnter = () => {
+    const events = step('D', 'S5').events;
+    return events.slice(0, events.findIndex((e) => e.kind === 'kd' && e.key === 'Enter'));
+  };
+
+  test('a bar key, then non-composing edits and Enter: the clear applies, every typed character reaches the shell, and the line is complete before CR', () => {
+    replay(beforeEnter());
+    expect(shellLine()).toBe('cd..');
+    t.input('-');
+    touch.clear();
+    typeText('x'); // a plain edit ends the stale composition: its text is flushed, then the field is emptied
+    expect(el.value).toBe('');
+    typeText('y');
+    press('Enter', 13);
+    expect(sent().endsWith('-xy\r')).toBe(true);
+    expect(shellLine()).toBe('cd..-xy');
+    expect(el.value).toBe('');
+  });
+
+  test('held composition text is flushed by Enter before the CR, not dropped', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..ab';
+    el.setSelectionRange(6, 6);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    expect(sent().endsWith('-')).toBe(true); // held back while the clear is pending
+    press('Enter', 13);
+    expect(sent().endsWith('-ab\r')).toBe(true);
+  });
+
+  test('a non-composing beforeinput also ends the stale composition', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..q';
+    el.setSelectionRange(6, 6);
+    fire('input', { inputType: 'insertCompositionText', data: 'q', isComposing: true });
+    fire('beforeinput', { inputType: 'insertText', data: 'r', isComposing: false });
+    expect(sent().endsWith('-q')).toBe(true);
+    expect(el.value).toBe('');
+  });
+
+  test('Ctrl+C sent while a clear is pending ends the composition and drops what was held', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..zz';
+    fire('input', { inputType: 'insertCompositionText', data: 'zz', isComposing: true });
+    t.input('\x03');
+    expect(el.value).toBe('');
+    bytes = [];
+    typeText('a');
+    expect(sent()).toBe('a');
   });
 });

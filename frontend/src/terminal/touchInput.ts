@@ -66,9 +66,10 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     else wipe();
   };
   // While a clear is pending the shell holds bytes the composition knows nothing about, so its
-  // updates are not mirrored (a diff from `last` would resend text or delete the wrong characters).
-  // At the end, only the part of the final text beyond what was already sent goes out; a
-  // composition that no longer extends it sends nothing.
+  // composing updates are not mirrored (a diff from `last` would resend text or delete the wrong
+  // characters). It ends on `compositionend`, on blur, or on the first non-composing edit or key
+  // (SwiftKey leaves empty compositions unended). Then only the part of the final text beyond what
+  // was already sent goes out; a composition that no longer extends it sends nothing.
   const endComposition = () => {
     composing = false;
     if (!pendingClear) return;
@@ -77,9 +78,17 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     wipe();
   };
 
+  // A non-composing event proves any composition we still track is over.
+  const endStale = () => {
+    if (pendingClear) endComposition();
+    else composing = false;
+  };
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
-    if (pendingClear) return;
+    if (!(e as InputEvent).isComposing) {
+      if (pendingClear) { endComposition(); return; }
+      composing = false;
+    } else if (pendingClear) return;
     const v = el.value;
     let p = 0;
     const n = Math.min(last.length, v.length);
@@ -99,6 +108,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   };
 
   const onBeforeInput = (e: Event) => {
+    if (!(e as InputEvent).isComposing) endStale();
     const type = (e as InputEvent).inputType;
     if (type === 'insertLineBreak' || type === 'insertParagraph') e.preventDefault();
   };
@@ -106,6 +116,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   const onKeyDown = (e: Event) => {
     const k = e as KeyboardEvent;
     if (k.isComposing || k.keyCode === 229) return;
+    endStale(); // flush held composition text before the key's own bytes
     if (handleClipboardKey(t, k, clipboard, clear)) {
       k.preventDefault();
       return;
@@ -158,8 +169,10 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   // After a command is sent the keyboard's context should be an empty field, as xterm leaves it.
   const offData = t.onData((d) => {
     if (d === '\r' || d === '\x03') {
-      el.value = '';
-      last = '';
+      // The line was submitted: whatever a pending composition held back is dropped.
+      composing = false;
+      pendingClear = false;
+      wipe();
     }
   });
   const offRender = t.onRender(place);
