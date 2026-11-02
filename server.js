@@ -7,6 +7,7 @@ import { createApi } from './lib/api.js';
 import { createCcClient } from './lib/ccClient.js';
 import { loadConfig } from './lib/config.js';
 import { createLayoutStore } from './lib/layoutStore.js';
+import { migrateLegacyDataDir } from './lib/migrateLegacyDataDir.js';
 import { createPtyProbe } from './lib/ptyProbe.js';
 import { SECURITY_HEADERS } from './lib/securityHeaders.js';
 import { createSessionManager } from './lib/sessionManager.js';
@@ -38,7 +39,7 @@ export function createServer({ distDir = DEFAULT_DIST, conductorUrl = null, data
     const manager = createSessionManager({ cc, shellLaunch: shellLaunch ?? createShellLaunch({ cc, dataDir }), probe, log });
     host = { cc, probe, manager, layouts: createLayoutStore(dataDir) };
   } else {
-    log.warn('code-terminal: CONDUCTOR_URL or PROJECTS_ROOT is unset; running standalone (UI and health only)');
+    log.warn('code-terminal: CONDUCTOR_URL is unset; running standalone (UI and health only)');
   }
 
   const app = express();
@@ -88,6 +89,7 @@ export function createServer({ distDir = DEFAULT_DIST, conductorUrl = null, data
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const config = loadConfig();
+  if (config.dataDir) migrateLegacyDataDir({ projectsRoot: process.env.PROJECTS_ROOT ?? null, dataDir: config.dataDir, log: console });
   const server = createServer({ conductorUrl: config.conductorUrl, dataDir: config.dataDir });
   for (const sig of ['SIGTERM', 'SIGINT']) {
     process.once(sig, () => {

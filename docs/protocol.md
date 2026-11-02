@@ -22,7 +22,7 @@ The plugin backend's own surface (REST + one WebSocket), the rules every request
 - **What it does not cover:** DNS rebinding onto **cc's** port. A page whose name rebinds to cc's address reaches the plugin through cc's proxy with a matching `Host`/`Origin` pair (`evil.test:<cc-port>` on both), byte-identical to a legitimate visit to cc, and passes. That gap is cc's: cc's own API has no authentication and the same exposure.
 - An upgrade refusal is a raw `403` (or `404`) with the CSP and `nosniff` headers and no body, before any WebSocket handshake.
 - HTTP refusals are JSON: `{code: 'REQUEST_REFUSED' | 'UNSUPPORTED_MEDIA_TYPE', error}`.
-- **Standalone** (no `CONDUCTOR_URL` or no `PROJECTS_ROOT`): every `/api/*` route but health answers `503 {code: 'HOST_UNAVAILABLE'}` before the guard runs.
+- **Standalone** (no `CONDUCTOR_URL`): every `/api/*` route but health answers `503 {code: 'HOST_UNAVAILABLE'}` before the guard runs.
 
 ## REST
 

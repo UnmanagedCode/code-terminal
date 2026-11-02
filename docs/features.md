@@ -86,7 +86,7 @@
 
 - One history file per **project**, shared by all its worktrees and all its shells: a command run in one shell is in a new shell's history at once, and in a running shell's after its next prompt. Another project never sees it.
 - The user's own startup files cannot point history elsewhere.
-- Where the files live: local projects `$PROJECTS_ROOT/.code-terminal/history/<project>`; projects on another System `$HOME/.local/state/code-terminal/history/<project>` on that System.
+- Where the files live: local projects `$CONDUCTOR_PLUGIN_DATA_DIR/history/<project>`; projects on another System `$HOME/.local/state/code-terminal/history/<project>` on that System.
 - **Shell support:**
 
 | Login shell | History guarantee | How it starts |

@@ -61,6 +61,18 @@ test("the program's terminal size follows the attach size and every resize", opt
   t.close();
 });
 
+// Invariant: the plugin stores under the CONDUCTOR_PLUGIN_DATA_DIR cc gives it, never in the projects root.
+test('the plugin stores under cc\'s CONDUCTOR_PLUGIN_DATA_DIR', opts, async () => {
+  const tree = { kind: 'pane', id: 'p1', sessionId: null };
+  const put = await pluginApi(scratch, 'PUT', 'api/layouts/alpha', { tree });
+  assert.equal(put.status, 204, put.text);
+  assert.equal(fs.existsSync(path.join(scratch.dataDir, 'layouts', 'alpha', 'main.json')), true);
+  assert.equal(fs.existsSync(path.join(scratch.tmp, 'projects', '.code-terminal')), false);
+  (await attach(scratch, await newShell(scratch, { project: 'alpha' }))).close();
+  const hashes = fs.readdirSync(path.join(scratch.dataDir, 'shell')).filter((d) => !d.startsWith('.'));
+  assert.equal(hashes.length > 0 && fs.existsSync(path.join(scratch.dataDir, 'shell', hashes[0], '.complete')), true);
+});
+
 test('history is per project through cc\'s real pty (the login shell, via the plugin)', opts, async () => {
   const nonce = `only-in-alpha-${Date.now()}`;
   const a1 = await attach(scratch, await newShell(scratch, { project: 'alpha' }));
@@ -78,7 +90,7 @@ test('history is per project through cc\'s real pty (the login shell, via the pl
 test('history is per project through cc\'s real pty (zsh, with the integration the plugin installed)', { ...opts, skip: SKIP || (fs.existsSync('/usr/bin/zsh') ? false : 'zsh is not installed') }, async () => {
   // The plugin installs the integration on its first open on this System.
   (await attach(scratch, await newShell(scratch, { project: 'alpha' }))).close();
-  const base = path.join(scratch.tmp, 'projects', '.code-terminal');
+  const base = scratch.dataDir;
   const [hash] = fs.readdirSync(path.join(base, 'shell')).filter((d) => !d.startsWith('.'));
   const open = (project) => new Promise((resolve, reject) => {
     const spec = buildSpec({ shell: '/usr/bin/zsh', base, dir: path.join(base, 'shell', hash), project, worktree: null, cols: 80, rows: 24 });
