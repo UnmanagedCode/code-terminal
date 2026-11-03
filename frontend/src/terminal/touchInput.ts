@@ -10,7 +10,7 @@
 import type { Terminal } from '@xterm/xterm';
 import { applyModifiers, keySequence, type ExtraKeyId } from './extraKeys';
 import { handleClipboardKey, type ClipboardLike } from './keys';
-import { disableTextAssist } from './softKeyboard';
+import { disableTextAssist, optOutOfAutofill } from './softKeyboard';
 
 const DEL = '\x7f';
 
@@ -38,6 +38,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   (textarea.parentElement ?? element).append(el);
   el.type = 'text';
   disableTextAssist(el);
+  optOutOfAutofill(el);
   el.setAttribute('aria-label', 'Terminal input');
   el.className = 'xterm-touch-input';
   // The same hiding as xterm's helper textarea; 16px stops iOS from zooming on focus.

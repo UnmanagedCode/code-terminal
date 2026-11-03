@@ -108,7 +108,8 @@ describe('record lines', () => {
   it('writes step start, redo, result and observation lines', () => {
     expect(stepStart('A', 'S4', 'echo hi  there')).toBe('@A.S4 want="echo hi  there"');
     expect(resultLine('A', 'S1', 'ls all..', 'ls -all.')).toBe('=A.S1 got="ls all.." want="ls -all." FAIL');
-    expect(obsLine('A', 'yes', 'no')).toBe('!A strip=yes caps=no');
+    expect(obsLine('A', 'yes', 'no', 'no')).toBe('!A strip=yes caps=no fill=no');
+    expect(obsLine('F', 'no', 'no')).toBe('!F strip=no caps=no fill=?');
   });
 
   it('writes headers, with the user agent and the attributes read back from the element', () => {
@@ -294,5 +295,22 @@ describe('focus result lines', () => {
   it('writes the summary line, with ? for a missing value', () => {
     expect(xfLine({ focus: true, blur: false })).toBe('!A xf focus=1 blur=0');
     expect(xfLine({ focus: null, blur: null })).toBe('!A xf focus=? blur=?');
+  });
+});
+
+describe('autofill diagnostic variants', () => {
+  it('runs F to I like E: S1, S4 and S6 only', () => {
+    for (const v of ['F', 'G', 'H', 'I'] as const) expect(VARIANT_STEPS[v]).toEqual(['S1', 'S4', 'S6']);
+  });
+
+  it('counts and parses their steps', () => {
+    expect(tally(['=G.S1 got="x" want="x" PASS']).G).toBe(1);
+    const [step] = parseCaptureLog('@I.S4 want="echo"\n=I.S4 got="echo" want="echo" PASS');
+    expect(step).toMatchObject({ variant: 'I', id: 'S4', verdict: 'PASS' });
+  });
+
+  it('keeps every variant answer line in the report', () => {
+    const r = buildReport([obsLine('A', 'no', 'no', 'no'), obsLine('F', 'no', 'no', 'yes')]);
+    expect(r.lines).toEqual(['!A strip=no caps=no fill=no', '!F strip=no caps=no fill=yes']);
   });
 });

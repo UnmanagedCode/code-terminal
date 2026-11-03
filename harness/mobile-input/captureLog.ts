@@ -1,7 +1,7 @@
 // Pure formatting and line model for the SwiftKey event-capture page: no DOM or xterm imports.
 // Every record is one line; every string is JSON-escaped so the log pastes back losslessly.
 
-export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E';
+export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
 export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7';
 export type Verdict = 'PASS' | 'TRAIL' | 'FAIL';
 export type Answer = 'yes' | 'no' | '?';
@@ -23,6 +23,11 @@ export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
   C: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   D: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   E: ['S1', 'S4', 'S6'],
+  // Autofill diagnostics built like E (see capture.tsx): the same steps.
+  F: ['S1', 'S4', 'S6'],
+  G: ['S1', 'S4', 'S6'],
+  H: ['S1', 'S4', 'S6'],
+  I: ['S1', 'S4', 'S6'],
 };
 
 const DEL = '\x7f';
@@ -127,10 +132,11 @@ export function xfResult(lines: readonly string[]): { focus: boolean | null; blu
 const flag = (v: boolean | null) => (v === null ? '?' : v ? '1' : '0');
 export const xfLine = (r: { focus: boolean | null; blur: boolean | null }) => `!A xf focus=${flag(r.focus)} blur=${flag(r.blur)}`;
 
-export const obsLine = (id: VariantId, strip: Answer, caps: Answer) => `!${id} strip=${strip} caps=${caps}`;
+export const obsLine = (id: VariantId, strip: Answer, caps: Answer, fill: Answer = '?') =>
+  `!${id} strip=${strip} caps=${caps} fill=${fill}`;
 
 // Done steps per variant: distinct steps with a `=` result line, so a redo is counted once.
-const RESULT = /^=([A-E])\.(S[1-7]) /;
+const RESULT = /^=([A-I])\.(S[1-7]) /;
 export function tally(lines: readonly string[]): Record<VariantId, number> {
   const done = new Map<VariantId, Set<StepId>>();
   for (const line of lines) {
@@ -168,8 +174,8 @@ export interface LogStep {
 }
 
 const TOKEN = /(?:v=)?"(?:[^"\\]|\\.)*"|\S+/g;
-const START = /^@([A-E])\.(S[1-7]) (?:want=(".*")|redo)$/;
-const RESULT_LINE = /^=([A-E])\.(S[1-7]) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
+const START = /^@([A-I])\.(S[1-7]) (?:want=(".*")|redo)$/;
+const RESULT_LINE = /^=([A-I])\.(S[1-7]) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
 
 function parseEvent(line: string): LogEvent {
   const tokens = line.match(TOKEN) ?? [];

@@ -315,6 +315,11 @@ describe('construction', () => {
       expect(el.getAttribute(a), a).toBe(v);
     }
     expect(el.getAttribute('aria-label')).toBe('Terminal input');
+    // Nothing about the field should read as a login to an autofill service or password manager.
+    for (const [a, v] of [['data-bwignore', 'true'], ['data-lpignore', 'true'], ['data-1p-ignore', 'true'], ['data-form-type', 'other'], ['aria-autocomplete', 'none']]) {
+      expect(el.getAttribute(a), a).toBe(v);
+    }
+    expect(el.getAttribute('name')).toBe('terminal-input');
   });
 });
 

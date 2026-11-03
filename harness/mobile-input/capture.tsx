@@ -7,7 +7,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { disableTextAssist } from '@/terminal/softKeyboard';
+import { AUTOFILL_OPT_OUT, disableTextAssist, optOutOfAutofill } from '@/terminal/softKeyboard';
 import { attachTouchInput, type TouchInput } from '@/terminal/touchInput';
 import { TOUCH_QUERY } from '@/terminal/useTouchDevice';
 import {
@@ -44,7 +44,7 @@ import './page.css';
 
 const VARIANT_IDS = Object.keys(VARIANT_STEPS) as VariantId[];
 const STORAGE_KEY = 'capture-log';
-const ATTRIBUTES = ['autocomplete', 'autocorrect', 'autocapitalize', 'spellcheck'];
+const ATTRIBUTES = ['autocomplete', 'autocorrect', 'autocapitalize', 'spellcheck', ...Object.keys(AUTOFILL_OPT_OUT)];
 
 interface Setup {
   question: string;
@@ -52,6 +52,10 @@ interface Setup {
   // The shipped setup: typing goes through `attachTouchInput`, and the logged field is its proxy.
   touchInput?: boolean;
   inputmode?: string;
+  // How a plain input (kind `input`) is treated beyond E's create-as-password-then-text:
+  // `optout` the shipped attribute set, `nope` an unrecognized autocomplete token, `late` the
+  // switch to text happens on first focus, `replaced` the element is swapped for a clone after the switch.
+  treat?: 'optout' | 'nope' | 'late' | 'replaced';
 }
 
 const SETUP: Record<VariantId, Setup> = {
@@ -60,10 +64,14 @@ const SETUP: Record<VariantId, Setup> = {
   C: { kind: 'xterm', inputmode: 'email', question: 'Attributes plus inputmode=email. Do suggestions, autospace and caps stop?' },
   D: { kind: 'xterm', inputmode: 'url', question: 'Attributes plus inputmode=url. The same question for the URL type.' },
   E: { kind: 'input', question: 'Plain input, created as a password field, then switched to text. Does the suggestion strip hide?' },
+  F: { kind: 'input', treat: 'optout', question: 'Like E plus the shipped autofill opt-out attributes. Is a Bitwarden/autofill suggestion shown? Is the strip still hidden?' },
+  G: { kind: 'input', treat: 'nope', question: 'Like E with autocomplete="nope" (an unrecognized token). Bitwarden/autofill suggestion? Strip?' },
+  H: { kind: 'input', treat: 'late', question: 'Like E, but stays a password field until it is first focused. Bitwarden/autofill suggestion? Strip?' },
+  I: { kind: 'input', treat: 'replaced', question: 'Like E, then replaced by a clone (never a password field). Bitwarden/autofill suggestion? Strip? (Expected: suggestion gone but the strip back.)' },
 };
 
-type Obs = { strip: Answer; caps: Answer };
-const UNANSWERED: Obs = { strip: '?', caps: '?' };
+type Obs = { strip: Answer; caps: Answer; fill: Answer };
+const UNANSWERED: Obs = { strip: '?', caps: '?', fill: '?' };
 
 interface View {
   step: number;
@@ -89,6 +97,8 @@ function Page() {
   const [view, setView] = useState<View>({ step: 0, done: false, text: '' });
   const [obs, setObs] = useState<Partial<Record<VariantId, Obs>>>({});
   const obsRef = useRef(obs);
+  // Variants run since this page loaded (the log may hold older runs): A is always required.
+  const ranRef = useRef(new Set<VariantId>(['A']));
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -112,6 +122,7 @@ function Page() {
 
   // One session per variant: it builds the field, owns the listeners, and runs the steps.
   useEffect(() => {
+    ranRef.current.add(variant);
     const setup = SETUP[variant];
     const steps = VARIANT_STEPS[variant];
     const host = hostRef.current!;
@@ -141,11 +152,20 @@ function Page() {
         field = host.querySelector<HTMLInputElement>('.xterm-touch-input')!;
       } else field = ta;
     } else {
-      const input = document.createElement('input');
+      let input = document.createElement('input');
       input.type = 'password';
       host.append(input);
-      input.type = 'text';
+      if (setup.treat === 'late') {
+        input.addEventListener('focus', () => { input.type = 'text'; }, { once: true });
+      } else input.type = 'text';
       disableTextAssist(input);
+      if (setup.treat === 'optout') optOutOfAutofill(input);
+      if (setup.treat === 'nope') input.setAttribute('autocomplete', 'nope');
+      if (setup.treat === 'replaced') {
+        const copy = input.cloneNode() as HTMLInputElement;
+        input.replaceWith(copy);
+        input = copy;
+      }
       field = input;
     }
 
@@ -178,7 +198,7 @@ function Page() {
       if (step === steps.length - 1) {
         done = true;
         const o = obsRef.current[variant] ?? UNANSWERED;
-        append(obsLine(variant, o.strip, o.caps));
+        append(obsLine(variant, o.strip, o.caps, o.fill));
         sync();
         return;
       }
@@ -304,26 +324,31 @@ function Page() {
     setRun((r) => r + 1);
   };
 
-  // What must be answered before the report is worth sending: the strip and caps toggles, and for
-  // the shipped variant both xterm focus results (focus the box, then tap Blur field).
+  // What must be answered before the report is worth sending: the strip, caps and autofill toggles
+  // of every variant run since the page loaded (A always), and A's two xterm focus results
+  // (focus the box, then tap Blur field).
   const missingForReport = (): string[] => {
-    const o = obsRef.current[variant] ?? UNANSWERED;
     const out: string[] = [];
-    if (o.strip === '?') out.push('suggestion strip answer');
-    if (o.caps === '?') out.push('capitals answer');
-    if (SETUP[variant].touchInput) {
-      const xf = xfResult(linesRef.current);
-      if (xf.focus === null) out.push('a focus (tap the box)');
-      if (xf.blur === null) out.push('a blur (tap Blur field)');
+    // The shipped variant always, and every other variant that has been run.
+    for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
+      const o = obsRef.current[v] ?? UNANSWERED;
+      for (const [k, label] of [['strip', 'suggestion strip'], ['caps', 'capitals'], ['fill', 'autofill/Bitwarden']] as const) {
+        if (o[k] === '?') out.push(`${v}: ${label} answer`);
+      }
     }
+    const xf = xfResult(linesRef.current);
+    if (xf.focus === null) out.push('A: a focus (tap the box)');
+    if (xf.blur === null) out.push('A: a blur (tap Blur field)');
     return out;
   };
 
   const sendResults = async () => {
     // The answers are logged here, not only at the last step, so they are never stale or missing.
-    const o = obsRef.current[variant] ?? UNANSWERED;
-    append(obsLine(variant, o.strip, o.caps));
-    if (SETUP[variant].touchInput) append(xfLine(xfResult(linesRef.current)));
+    for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
+      const o = obsRef.current[v] ?? UNANSWERED;
+      append(obsLine(v, o.strip, o.caps, o.fill));
+    }
+    append(xfLine(xfResult(linesRef.current)));
     setSending(true);
     let result: { ok: boolean; code?: string };
     try {
@@ -411,9 +436,9 @@ function Page() {
       </div>
       <fieldset className="obs">
         <legend>Answer after the first step</legend>
-        {(['strip', 'caps'] as const).map((key) => (
+        {(['strip', 'caps', 'fill'] as const).map((key) => (
           <div key={key} className="row">
-            <span>{key === 'strip' ? 'Suggestion strip shown?' : 'First letter capitalized?'}</span>
+            <span>{key === 'strip' ? 'Suggestion strip shown?' : key === 'caps' ? 'First letter capitalized?' : 'Bitwarden / autofill suggestion shown?'}</span>
             {(['yes', 'no'] as const).map((value) => (
               <button key={value} type="button" tabIndex={-1} onPointerDown={keep} onClick={() => answer(key, value)} {...pressed(o[key] === value)}>
                 {value === 'yes' ? 'Yes' : 'No'}
