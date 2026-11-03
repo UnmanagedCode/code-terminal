@@ -106,7 +106,7 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | `terminal/keys.ts` | Ctrl+Shift+C/V |
 | `terminal/extraKeys.ts` | the bar's catalog (`EXTRA_KEYS`), `keySequence`, pure `applyModifiers`, the `Modifiers` state machine (injectable clock) |
 | `terminal/softKeyboard.ts` | `disableTextAssist` on xterm's helper textarea and the touch-input proxy |
-| `terminal/touchInput.ts` | `attachTouchInput`: the hidden `<input>` (password, then text) that takes touch typing; mirrors each `input` event to `Terminal.input` as DELs plus the new tail, maps Enter/Backspace/arrows/Tab/Escape/Ctrl-Alt keys, pastes through `Terminal.paste`, disables xterm's textarea and relays focus/blur to it; attached from `TerminalPane` by `[touch, opened]` |
+| `terminal/touchInput.ts` | `attachTouchInput`: the hidden `<input>` (password, then text) that takes touch typing; mirrors each `input` event to `Terminal.input` as DELs plus the new tail, maps Enter/Backspace/arrows/Tab/Escape/Ctrl-Alt keys, treats a bare 229 keydown/keyup pair as a Backspace (`BARE_GUARD_MS`), pastes through `Terminal.paste`, disables xterm's textarea and relays focus/blur to it; attached from `TerminalPane` by `[touch, opened]` |
 | `terminal/useTouchDevice.ts` | `(hover: none)` via `useSyncExternalStore` |
 | `terminal/ExtraKeys.tsx` | the bar; `pointerdown` is prevented so focus stays, the action fires on `click` |
 | `terminal/theme.ts` | host tokens → hex via a one-pixel canvas (xterm cannot parse oklch); follows theme flips |

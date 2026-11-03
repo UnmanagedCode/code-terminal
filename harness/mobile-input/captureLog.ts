@@ -1,7 +1,7 @@
 // Pure formatting and line model for the SwiftKey event-capture page: no DOM or xterm imports.
 // Every record is one line; every string is JSON-escaped so the log pastes back losslessly.
 
-export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K';
+export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
 export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8' | 'S9' | 'S10' | 'S11';
 export type Verdict = 'PASS' | 'TRAIL' | 'FAIL';
 export type Answer = 'yes' | 'no' | '?';
@@ -36,10 +36,6 @@ export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
   G: ['S1', 'S4', 'S6'],
   H: ['S1', 'S4', 'S6'],
   I: ['S1', 'S4', 'S6'],
-  // The shipped input with the field kept empty (see touchInput's `emptyField`).
-  J: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
-  // The shipped input plus bare-Backspace handling (see touchInput's `bareBackspace`).
-  K: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11'],
 };
 
 const DEL = '\x7f';
@@ -147,7 +143,7 @@ export function xfResult(lines: readonly string[], variant: VariantId): { focus:
   const out: { focus: boolean | null; blur: boolean | null } = { focus: null, blur: null };
   let current: string | null = null;
   for (const line of lines) {
-    const v = /^#var ([A-K]) /.exec(line);
+    const v = /^#var ([A-Z]) /.exec(line);
     if (v) { current = v[1]; continue; }
     if (current !== variant) continue;
     const m = /^\d+ (fo|bl) .* xf=([01])$/.exec(line);
@@ -163,8 +159,8 @@ export const xfLine = (variant: VariantId, r: { focus: boolean | null; blur: boo
 export const obsLine = (id: VariantId, strip: Answer, caps: Answer, fill: Answer = '?', save: Answer = '?') =>
   `!${id} strip=${strip} caps=${caps} fill=${fill} save=${save}`;
 
-// Done steps per variant: distinct steps with a `=` result line, so a redo is counted once.
-const RESULT = /^=([A-K])\.(S\d+) /;
+// Done steps per variant (any letter: saved reports and fixtures include retired diagnostic variants): distinct steps with a `=` result line, so a redo is counted once.
+const RESULT = /^=([A-Z])\.(S\d+) /;
 export function tally(lines: readonly string[]): Record<VariantId, number> {
   const done = new Map<VariantId, Set<StepId>>();
   for (const line of lines) {
@@ -202,8 +198,8 @@ export interface LogStep {
 }
 
 const TOKEN = /(?:v=)?"(?:[^"\\]|\\.)*"|\S+/g;
-const START = /^@([A-K])\.(S\d+) (?:want=(".*")|redo)$/;
-const RESULT_LINE = /^=([A-K])\.(S\d+) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
+const START = /^@([A-Z])\.(S\d+) (?:want=(".*")|redo)$/;
+const RESULT_LINE = /^=([A-Z])\.(S\d+) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
 
 function parseEvent(line: string): LogEvent {
   const tokens = line.match(TOKEN) ?? [];

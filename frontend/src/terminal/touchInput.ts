@@ -5,7 +5,7 @@
 // typing into a value diff taken on a timer, which loses or repeats bytes when edits arrive in
 // one batch. An input created as `type=password` and then switched to `type=text` gets no
 // suggestion strip, so the field only ever receives plain edits; each one is mirrored to the
-// shell at once, with no timers. The attributes must be set before the first focus: Chrome
+// shell at once (the only timer is the short guard for a bare Backspace). The attributes must be set before the first focus: Chrome
 // copies them into the keyboard's editor info when the field gains focus.
 import type { Terminal } from '@xterm/xterm';
 import { applyModifiers, keySequence, type ExtraKeyId } from './extraKeys';
@@ -28,22 +28,13 @@ export interface TouchInput {
 
 const isHighSurrogate = (c: number) => c >= 0xd800 && c <= 0xdbff;
 
-// Call after `open()`.
-export interface TouchInputOptions {
-  // Diagnostic (capture page variant J): keep the field empty after every committed, non-composing
-  // edit, so the keyboard's view of the field (empty, caret 0) matches it. A composition is emptied
-  // when it ends, never during it.
-  emptyField?: boolean;
-  // Diagnostic (capture page variant K): SwiftKey sends most Backspaces as a bare keydown/keyup
-  // 229 pair with no edit between (and moves the caret to 0), deleting nothing. Treat such a pair
-  // as a Backspace: send one DEL and drop the last character from the field and the sent-text record.
-  bareBackspace?: boolean;
-}
-
-// How long after the keyup an edit event may still show the browser did delete, so none is repeated.
+// SwiftKey sends most single-tap Backspaces as a bare keydown/keyup 229 pair with no edit between
+// (and moves the caret to 0), deleting nothing. Such a pair is treated as a Backspace; this is how
+// long after the keyup an edit event may still show the browser did delete, so none is repeated.
 const BARE_GUARD_MS = 40;
 
-export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard, { emptyField = false, bareBackspace = false }: TouchInputOptions = {}): TouchInput {
+// Call after `open()`.
+export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard): TouchInput {
   const { textarea, element } = t;
   if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
 
@@ -87,10 +78,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   // was already sent goes out; a composition that no longer extends it sends nothing.
   const endComposition = () => {
     composing = false;
-    if (!pendingClear) {
-      if (emptyField) wipe();
-      return;
-    }
+    if (!pendingClear) return;
     pendingClear = false;
     if (el.value.startsWith(last)) send(el.value.slice(last.length));
     wipe();
@@ -156,7 +144,6 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     send(v.slice(p));
     // A keyboard that mis-tracks the caret (it reports 0 on first focus) sends later characters
     // to the wrong place; moving the caret to the end makes Chrome resync the keyboard.
-    if (emptyField && !(e as InputEvent).isComposing) { wipe(); return; }
     const len = el.value.length;
     if (!(e as InputEvent).isComposing && (el.selectionStart !== len || el.selectionEnd !== len)) {
       el.setSelectionRange(len, len);
@@ -228,13 +215,11 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     [el, 'keydown', onKeyDown],
     [el, 'paste', onPaste],
     [el, 'focus', onFocus],
-    ...(bareBackspace ? ([
-      [el, 'keyup', onKeyUp],
-      [el, 'beforeinput', noteEdit],
-      [el, 'input', noteEdit],
-      [el, 'compositionupdate', noteEdit],
-      [el, 'compositionend', noteEdit],
-    ] as [EventTarget, string, (e: Event) => void][]) : []),
+    [el, 'keyup', onKeyUp],
+    [el, 'beforeinput', noteEdit],
+    [el, 'input', noteEdit],
+    [el, 'compositionupdate', noteEdit],
+    [el, 'compositionend', noteEdit],
     [el, 'compositionstart', () => { composing = true; noteEdit(); }],
     [el, 'compositionend', endComposition],
     [el, 'blur', onBlur],

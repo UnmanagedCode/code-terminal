@@ -46,8 +46,7 @@ import {
 } from './captureLog';
 import './page.css';
 
-// K first: it is the variant the report must contain.
-const VARIANT_IDS = ['K', ...Object.keys(VARIANT_STEPS).filter((v) => v !== 'K')] as VariantId[];
+const VARIANT_IDS = Object.keys(VARIANT_STEPS) as VariantId[];
 const STORAGE_KEY = 'capture-log';
 const ATTRIBUTES = ['autocomplete', 'autocorrect', 'autocapitalize', 'spellcheck', ...Object.keys(AUTOFILL_OPT_OUT)];
 
@@ -56,10 +55,6 @@ interface Setup {
   kind: 'xterm' | 'input';
   // The shipped setup: typing goes through `attachTouchInput`, and the logged field is its proxy.
   touchInput?: boolean;
-  // Diagnostic: the touch input keeps its field empty after every committed edit.
-  emptyField?: boolean;
-  // Diagnostic: a bare 229 keydown/keyup pair is treated as a Backspace.
-  bareBackspace?: boolean;
   inputmode?: string;
   // How a plain input (kind `input`) is treated beyond E's create-as-password-then-text:
   // `optout` the shipped attribute set, `nope` an unrecognized autocomplete token, `late` the
@@ -69,8 +64,6 @@ interface Setup {
 
 const SETUP: Record<VariantId, Setup> = {
   A: { kind: 'xterm', touchInput: true, question: 'Shipped: touch input, a hidden input built like E. Expect no suggestion strip and no capitals.' },
-  J: { kind: 'xterm', touchInput: true, emptyField: true, question: 'Diagnostic: the shipped touch input, but its field is kept empty after every edit. Do all steps pass, S7 and S8 included?' },
-  K: { kind: 'xterm', touchInput: true, bareBackspace: true, question: 'Diagnostic: the shipped touch input, plus a bare Backspace key pair sends a DEL. Do S7, S8, S9 and S10 all pass?' },
   B: { kind: 'xterm', question: 'Diagnostic: xterm textarea with the text-assist attributes only.' },
   C: { kind: 'xterm', inputmode: 'email', question: 'Attributes plus inputmode=email. Do suggestions, autospace and caps stop?' },
   D: { kind: 'xterm', inputmode: 'url', question: 'Attributes plus inputmode=url. The same question for the URL type.' },
@@ -95,7 +88,7 @@ const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const isVariant = (s: string | null): s is VariantId => s !== null && Object.hasOwn(SETUP, s);
 const initialVariant = (): VariantId => {
   const v = new URLSearchParams(location.search).get('v');
-  return isVariant(v) ? v : 'K';
+  return isVariant(v) ? v : 'A';
 };
 const loadLog = (): string[] => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
 const stepWant = (id: string) => STEPS.find((s) => s.id === id)!.want;
@@ -108,8 +101,8 @@ function Page() {
   const [view, setView] = useState<View>({ step: 0, done: false, text: '' });
   const [obs, setObs] = useState<Partial<Record<VariantId, Obs>>>({});
   const obsRef = useRef(obs);
-  // Variants run since this page loaded (the log may hold older runs): A and K are always required.
-  const ranRef = useRef(new Set<VariantId>(['A', 'K']));
+  // Variants run since this page loaded (the log may hold older runs): A is always required.
+  const ranRef = useRef(new Set<VariantId>(['A']));
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -159,7 +152,7 @@ function Page() {
       disableTextAssist(ta);
       if (setup.inputmode) ta.setAttribute('inputmode', setup.inputmode);
       if (setup.touchInput) {
-        touch = attachTouchInput(term, undefined, { emptyField: setup.emptyField, bareBackspace: setup.bareBackspace });
+        touch = attachTouchInput(term);
         field = host.querySelector<HTMLInputElement>('.xterm-touch-input')!;
       } else field = ta;
     } else {
@@ -349,10 +342,10 @@ function Page() {
   // (focus the box, then tap Blur field).
   const missingForReport = (): string[] => {
     const out: string[] = [];
-    // K must have been run through every step on this page load; the report is built from it.
+    // The shipped variant must have been run through every step on this page load; the report is built from it.
     const done = tally(sinceLastCapture(linesRef.current));
-    if (done.K === 0) out.push('K: not run yet (pick K above and do S1 to S11)');
-    else if (done.K < VARIANT_STEPS.K.length) out.push(`K: steps ${done.K}/${VARIANT_STEPS.K.length} done`);
+    if (done.A === 0) out.push('A: not run yet (do S1 to S11 on A)');
+    else if (done.A < VARIANT_STEPS.A.length) out.push(`A: steps ${done.A}/${VARIANT_STEPS.A.length} done`);
     // The shipped variant always, and every other variant that has been run.
     for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
       const o = obsRef.current[v] ?? UNANSWERED;

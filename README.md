@@ -66,7 +66,7 @@ All need `CC_PROJECTS_ROOT` exported when run outside a cc-spawned shell.
 
 ## Known limitations
 
-- On a touch device a hardware keyboard sends only Enter, Backspace, arrows, Tab, Escape and Ctrl/Alt plus a character; iOS is untested for the touch input.
+- On a touch device a hardware keyboard sends only Enter, Backspace, arrows, Tab, Escape and Ctrl/Alt plus a character, the keyboard's spacebar swipe moves the shell cursor (it sends arrow keys), and password managers such as Bitwarden may still offer a suggestion on the empty input; the single-tap Backspace workaround is tuned to SwiftKey on one Android device and iOS is untested.
 - Ctrl/⌘+1…9 switch tabs only while focus is inside the plugin's frame, and never reach the shell.
 - Browsers that ignore `interactive-widget=resizes-content` (iOS Safari) overlay the soft keyboard instead of resizing the page, so it can cover the extra-keys bar.
 - Shells do not survive a restart of the plugin backend, of cc, or of a remote System's provider: their panes show `ended` with **Restart**.

@@ -157,7 +157,6 @@ describe('step table and tally', () => {
   it('adds S7 for the shipped variant only: type past the start of the line, then d', () => {
     expect(STEPS.find((s) => s.id === 'S7')!.want).toBe('d');
     expect(VARIANT_STEPS.A.at(-1)).toBe('S11');
-    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
     expect(STEPS.find((s) => s.id === 'S8')!.want).toBe('a');
     expect(tally(['=A.S7 got="d" want="d" PASS']).A).toBe(1);
   });
@@ -295,17 +294,17 @@ describe('focus result lines', () => {
     expect(xfResult([], 'A')).toEqual({ focus: null, blur: null });
     const lines = [
       '#var A input type=text', focusLine(1, 'fo', snap, false), focusLine(2, 'fo', snap, true), focusLine(3, 'bl', snap, true), focusLine(4, 'bl', snap, false), focusLine(5, 'fo', snap),
-      '#var J input type=text', focusLine(6, 'fo', snap, true),
+      '#var B input type=text', focusLine(6, 'fo', snap, true),
       '#var A input type=text',
     ];
     expect(xfResult(lines, 'A')).toEqual({ focus: true, blur: false });
-    expect(xfResult(lines, 'J')).toEqual({ focus: true, blur: null });
+    expect(xfResult(lines, 'B')).toEqual({ focus: true, blur: null });
     expect(xfResult(lines.slice(0, 2), 'A')).toEqual({ focus: false, blur: null });
   });
 
   it('writes the per-variant summary line, with ? for a missing value', () => {
     expect(xfLine('A', { focus: true, blur: false })).toBe('!A xf focus=1 blur=0');
-    expect(xfLine('J', { focus: null, blur: null })).toBe('!J xf focus=? blur=?');
+    expect(xfLine('B', { focus: null, blur: null })).toBe('!B xf focus=? blur=?');
   });
 
   it('takes only the lines since the last capture header, so an earlier run cannot answer for this one', () => {
@@ -325,10 +324,9 @@ describe('parsing a trimmed report', () => {
   });
 });
 
-describe('bare Backspace variant K and the no-op key steps', () => {
-  it('runs S1 to S11 on A and K', () => {
-    expect(VARIANT_STEPS.K).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11']);
-    expect(VARIANT_STEPS.A).toEqual(VARIANT_STEPS.K);
+describe('the Backspace, no-op key and swipe steps', () => {
+  it('runs S1 to S11 on the shipped variant', () => {
+    expect(VARIANT_STEPS.A).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11']);
   });
 
   it('S9 expects abc untouched and S10 an empty line', () => {
@@ -337,10 +335,10 @@ describe('bare Backspace variant K and the no-op key steps', () => {
   });
 
   it('counts, formats and parses two-digit steps and the empty want', () => {
-    expect(tally(['=K.S10 got="" want="" PASS']).K).toBe(1);
-    const [step] = parseCaptureLog('@K.S10 want=""\n=K.S10 got="" want="" PASS');
-    expect(step).toMatchObject({ variant: 'K', id: 'S10', want: '', verdict: 'PASS' });
-    expect(resultLine('K', 'S10', '', '')).toBe('=K.S10 got="" want="" PASS');
+    expect(tally(['=A.S10 got="" want="" PASS']).A).toBe(1);
+    const [step] = parseCaptureLog('@A.S10 want=""\n=A.S10 got="" want="" PASS');
+    expect(step).toMatchObject({ variant: 'A', id: 'S10', want: '', verdict: 'PASS' });
+    expect(resultLine('A', 'S10', '', '')).toBe('=A.S10 got="" want="" PASS');
   });
 });
 
@@ -361,12 +359,6 @@ describe('autofill diagnostic variants', () => {
   });
 });
 
-describe('empty-field diagnostic variant J', () => {
-  it('runs S1 to S8, the shipped variant\'s steps up to S8', () => {
-    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
-  });
-});
-
 describe('the swipe observation step and report scope', () => {
   it('S11 is the spacebar swipe: abc, with the arrow keys it sends allowed, so S9 stays a no-spurious-DEL check', () => {
     expect(STEPS.find((s) => s.id === 'S11')!.want).toBe('abc');
@@ -374,16 +366,16 @@ describe('the swipe observation step and report scope', () => {
   });
 
   it('judges S11 without the arrow sequences the swipe sends, and keeps the raw line in the log', () => {
-    const line = resultLine('K', 'S11', 'abc\\x1b[D\\x1b[D\\x1b[C', 'abc');
-    expect(line).toBe('=K.S11 got="abc\\\\x1b[D\\\\x1b[D\\\\x1b[C" want="abc" PASS');
-    expect(resultLine('K', 'S11', 'ab\\x1b[D', 'abc')).toContain(' FAIL');
-    expect(resultLine('K', 'S9', 'abc\\x1b[C', 'abc')).toContain(' FAIL'); // S9 allows no arrows
+    const line = resultLine('A', 'S11', 'abc\\x1b[D\\x1b[D\\x1b[C', 'abc');
+    expect(line).toBe('=A.S11 got="abc\\\\x1b[D\\\\x1b[D\\\\x1b[C" want="abc" PASS');
+    expect(resultLine('A', 'S11', 'ab\\x1b[D', 'abc')).toContain(' FAIL');
+    expect(resultLine('A', 'S9', 'abc\\x1b[C', 'abc')).toContain(' FAIL'); // S9 allows no arrows
   });
 
   it('builds the report from the lines since the last capture header only', () => {
-    const lines = ['#cap v1 old', '@B.S1 want="x"', '1 tx "old"', '=B.S1 got="y" want="x" FAIL', '#cap v1 new', '@K.S1 want="x"', '2 tx "new"', '=K.S1 got="y" want="x" FAIL'];
+    const lines = ['#cap v1 old', '@B.S1 want="x"', '1 tx "old"', '=B.S1 got="y" want="x" FAIL', '#cap v1 new', '@A.S1 want="x"', '2 tx "new"', '=A.S1 got="y" want="x" FAIL'];
     const r = buildPageReport(lines);
-    expect(r.lines).toEqual(['#cap v1 new', '@K.S1 want="x"', '2 tx "new"', '=K.S1 got="y" want="x" FAIL']);
+    expect(r.lines).toEqual(['#cap v1 new', '@A.S1 want="x"', '2 tx "new"', '=A.S1 got="y" want="x" FAIL']);
   });
 
   it('writes when the autofill suggestion appeared, as a comma list of known contexts', () => {
