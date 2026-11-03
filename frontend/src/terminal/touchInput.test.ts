@@ -845,6 +845,63 @@ describe('bare Backspace (SwiftKey sends most single taps as a keydown/keyup 229
     expect(shellLine()).toBe('');
   });
 
+  describe('the guard window and the flush are exact', () => {
+    test('the guard really delays the DEL: a browser deletion arriving partway through the window cancels it, giving one deletion and no extra DEL', () => {
+      focusProxy();
+      typeText('abc');
+      bytes = [];
+      bareBackspacePair(el, advance);
+      vi.advanceTimersByTime(20); // inside the 40 ms guard
+      expect(sent()).toBe('');
+      el.value = 'ab';
+      el.setSelectionRange(2, 2);
+      el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f');
+      expect(el.value).toBe('ab');
+    });
+
+    const twoPending = () => {
+      focusProxy();
+      typeText('abcd');
+      bytes = [];
+      bareBackspacePair(el, advance, 10);
+      vi.advanceTimersByTime(5);
+      bareBackspacePair(el, advance, 10); // both timers still pending
+      expect(sent()).toBe('');
+    };
+
+    test('Enter after two pending pairs sends both DELs before the CR and the field drops two characters', () => {
+      twoPending();
+      press('Enter', 13);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f\x7f\r');
+    });
+
+    test('flush() with two pending pairs sends both DELs before the next bytes and drops two characters', () => {
+      twoPending();
+      touch.flush();
+      expect(el.value).toBe('ab');
+      t.input('-');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f\x7f-');
+    });
+
+    test('Ctrl+Shift+V flushes a pending DEL before the pasted text', async () => {
+      focusProxy();
+      typeText('abc');
+      bytes = [];
+      clipboard.readText.mockResolvedValue('PP');
+      bareBackspacePair(el, advance);
+      press('V', 86, { code: 'KeyV', ctrlKey: true, shiftKey: true });
+      for (let i = 0; i < 6; i++) await Promise.resolve(); // the clipboard read, without advancing any timer
+      expect(sent()).toBe('\x7fPP');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7fPP');
+      expect(el.value).toBe('');
+    });
+  });
+
   describe('a pending bare DEL never crosses a line or a blur', () => {
     test('pair then Enter inside the guard: the DEL lands before the CR and nothing follows it', () => {
       focusProxy();
