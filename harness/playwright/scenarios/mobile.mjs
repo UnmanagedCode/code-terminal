@@ -1,5 +1,6 @@
 // A phone-sized touch page: the extra-keys bar, its modifiers and arrows reach the shell,
-// and tapping the bar never moves focus off the touch-input proxy, which takes the typing.
+// and tapping the bar never moves focus off the touch-input proxy, which takes the typing;
+// a one-finger drag over the terminal scrolls the scrollback.
 import assert from 'node:assert/strict';
 import { newShell, openProject, typeLine, waitText, waitUnwrapped, until } from '../lib.mjs';
 
@@ -56,13 +57,43 @@ export async function run({ page, scratch, shot }) {
   await tap('Up arrow');
   await waitText(pane, '^[OA', 'application-cursor Up as ^[OA');
   await shot('mobile-3-app-cursor.png');
-  await page.keyboard.press('Control+u');
+  await page.keyboard.press('Control+c');
 
   // The proxy's focus and blur reach xterm: DECSET 1004 reports arrive through the disabled textarea.
-  await typeLine(page, pane, "printf '\\e[?1004h'; cat -v");
+  await typeLine(page, pane, "printf '\\e[?1004h'; echo mode-set; cat -v");
+  await waitText(pane, /^mode-set$/m, 'DECSET 1004 to be on');
   await proxy.evaluate((el) => el.blur());
   await proxy.focus();
   await waitText(pane, '^[[O', 'the focus-out report');
   await waitText(pane, '^[[I', 'the focus-in report');
   await shot('mobile-4-focus-reports.png');
+
+  // A one-finger drag scrolls the scrollback (xterm has no touch scrolling of its own) and focus stays.
+  await page.keyboard.press('Control+c');
+  await typeLine(page, pane, 'seq 1 300');
+  await waitText(pane, /^300$/m, 'the end of seq');
+  const rowsText = () => pane.locator('.xterm-rows').innerText();
+  const cdp = await page.context().newCDPSession(page);
+  const screen = (await pane.locator('.xterm-screen').boundingBox());
+  const sx = screen.x + screen.width / 2;
+  const drag = async (fromY, toY) => {
+    const at = (y) => [{ x: sx, y, id: 1 }];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(fromY) });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(fromY + ((toY - fromY) * i) / 10) });
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  const top = screen.y + 10;
+  const bottom = screen.y + screen.height - 10;
+  assert.match(await rowsText(), /\$/, 'the prompt is visible before the swipe');
+  await drag(top, bottom);
+  await until(async () => !/\$/.test(await rowsText()), 'a swipe down scrolled the prompt out of view');
+  assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-touch-input', 'a swipe keeps focus on the proxy');
+  await shot('mobile-5-scrolled.png');
+  await drag(bottom, top);
+  await drag(bottom, top);
+  await until(async () => /\$/.test(await rowsText()), 'a swipe up brought the prompt back');
+  await pane.locator('.xterm-screen').tap();
+  assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-touch-input', 'a tap after a swipe focuses the proxy');
 }
