@@ -101,6 +101,24 @@ describe('touch scrolling', () => {
     expect(calls).toEqual([]);
   });
 
+  test('every touch listener is registered passive, so taps and native behaviour stay intact', () => {
+    scroll.dispose();
+    const add = vi.spyOn(surface, 'addEventListener');
+    scroll = attachTouchScroll(t, surface);
+    const touchCalls = add.mock.calls.filter(([type]) => String(type).startsWith('touch'));
+    expect(touchCalls.map(([type]) => type).sort()).toEqual(['touchcancel', 'touchend', 'touchmove', 'touchstart']);
+    for (const [, , options] of touchCalls) expect(options).toMatchObject({ passive: true });
+  });
+
+  test('dispose restores the previous inline touch-action, not an empty value', () => {
+    scroll.dispose();
+    surface.style.touchAction = 'pan-x';
+    scroll = attachTouchScroll(t, surface);
+    expect(surface.style.touchAction).not.toBe('pan-x');
+    scroll.dispose();
+    expect(surface.style.touchAction).toBe('pan-x');
+  });
+
   test('touch-action blocks the native pan while attached and is restored on dispose', () => {
     expect(['none', 'pinch-zoom']).toContain(surface.style.touchAction);
     scroll.dispose();
