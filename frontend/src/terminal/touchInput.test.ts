@@ -19,7 +19,7 @@ let touch: ReturnType<typeof attachTouchInput>;
 
 let clipboard: { writeText: ReturnType<typeof vi.fn<() => Promise<void>>>; readText: ReturnType<typeof vi.fn<() => Promise<string>>> };
 
-function setup(opts: { focusTextarea?: boolean } = {}) {
+function setup(opts: { focusTextarea?: boolean; emptyField?: boolean } = {}) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   t = new Terminal();
@@ -29,7 +29,7 @@ function setup(opts: { focusTextarea?: boolean } = {}) {
   bytes = [];
   t.onData((d) => bytes.push(d));
   clipboard = { writeText: vi.fn(() => Promise.resolve()), readText: vi.fn(() => Promise.resolve('')) };
-  touch = attachTouchInput(t, clipboard);
+  touch = attachTouchInput(t, clipboard, { emptyField: opts.emptyField });
   el = t.element!.querySelector<HTMLInputElement>('.xterm-touch-input')!;
 }
 
@@ -698,5 +698,80 @@ describe('the caret stays at the end of the field', () => {
     driftCaret(el, 0);
     expect(caretAtEnd()).toEqual([0, 0]);
     touch = attachTouchInput(t, clipboard);
+  });
+});
+
+describe('the pin on the non-229 key path', () => {
+  test('a caret that drifted to 0 with no selectionchange is put back by a Backspace key (keyCode 8): the field becomes ab and one DEL is sent', () => {
+    el.focus();
+    typeText('abc');
+    bytes = [];
+    el.setSelectionRange(0, 0); // no event
+    backspaceKey(el, 8);
+    expect(el.value).toBe('ab');
+    expect(sent()).toBe('\x7f');
+  });
+});
+
+describe('empty-field mode (diagnostic variant J)', () => {
+  const emptyMode = () => {
+    touch.dispose();
+    t.dispose();
+    document.body.innerHTML = '';
+    setup({ emptyField: true });
+  };
+
+  test('each committed edit is sent at once and the field is empty again', () => {
+    emptyMode();
+    for (const c of ['a', 'b', 'c']) {
+      typeText(c);
+      expect(el.value, c).toBe('');
+    }
+    expect(sent()).toBe('abc');
+  });
+
+  test('S8: abc, idle, Backspace twice (as real Backspace keys), Enter: the shell line is a', () => {
+    emptyMode();
+    typeText('a'); typeText('b'); typeText('c');
+    vi.advanceTimersByTime(5000);
+    backspaceKey(el, 8);
+    backspaceKey(el, 8);
+    press('Enter', 13);
+    expect(shellLine()).toBe('a');
+    expect(el.value).toBe('');
+  });
+
+  test('a composition is never cleared mid-way; it is sent as diffs and the field empties at compositionend', () => {
+    emptyMode();
+    fire('compositionstart', { data: '' });
+    const comp = (v: string) => {
+      el.value = v;
+      el.setSelectionRange(v.length, v.length);
+      fire('input', { inputType: 'insertCompositionText', data: v, isComposing: true });
+    };
+    comp('に');
+    comp('にほ');
+    expect(el.value).toBe('にほ');
+    expect(sent()).toBe('にほ');
+    fire('compositionend', { data: 'にほ' });
+    expect(el.value).toBe('');
+    expect(sent()).toBe('にほ');
+    typeText('x');
+    expect(sent()).toBe('にほx');
+  });
+
+  test('paste and Backspace on the empty field behave as in the shipped mode', () => {
+    emptyMode();
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', { value: { getData: () => 'PP' } });
+    el.dispatchEvent(ev);
+    expect(sent()).toBe('PP');
+    expect(press('Backspace', 8).defaultPrevented).toBe(true);
+    expect(sent()).toBe('PP\x7f');
+  });
+
+  test('the shipped mode keeps its text after an edit (only J empties)', () => {
+    typeText('a');
+    expect(el.value).toBe('a');
   });
 });

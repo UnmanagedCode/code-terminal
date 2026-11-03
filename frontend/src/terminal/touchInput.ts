@@ -29,7 +29,14 @@ export interface TouchInput {
 const isHighSurrogate = (c: number) => c >= 0xd800 && c <= 0xdbff;
 
 // Call after `open()`.
-export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard): TouchInput {
+export interface TouchInputOptions {
+  // Diagnostic (capture page variant J): keep the field empty after every committed, non-composing
+  // edit, so the keyboard's view of the field (empty, caret 0) matches it. A composition is emptied
+  // when it ends, never during it.
+  emptyField?: boolean;
+}
+
+export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard, { emptyField = false }: TouchInputOptions = {}): TouchInput {
   const { textarea, element } = t;
   if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
 
@@ -73,7 +80,10 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   // was already sent goes out; a composition that no longer extends it sends nothing.
   const endComposition = () => {
     composing = false;
-    if (!pendingClear) return;
+    if (!pendingClear) {
+      if (emptyField) wipe();
+      return;
+    }
     pendingClear = false;
     if (el.value.startsWith(last)) send(el.value.slice(last.length));
     wipe();
@@ -110,6 +120,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     send(v.slice(p));
     // A keyboard that mis-tracks the caret (it reports 0 on first focus) sends later characters
     // to the wrong place; moving the caret to the end makes Chrome resync the keyboard.
+    if (emptyField && !(e as InputEvent).isComposing) { wipe(); return; }
     const len = el.value.length;
     if (!(e as InputEvent).isComposing && (el.selectionStart !== len || el.selectionEnd !== len)) {
       el.setSelectionRange(len, len);
@@ -129,6 +140,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
       return;
     }
     endStale(); // flush held composition text before the key's own bytes
+    pin(); // a caret moved without an event must be back at the end before the default action runs
     if (handleClipboardKey(t, k, clipboard, clear)) {
       k.preventDefault();
       return;

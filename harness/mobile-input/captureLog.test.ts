@@ -21,6 +21,7 @@ import {
   buildReport,
   xfLine,
   xfResult,
+  sinceLastCapture,
   parseCaptureLog,
   REPORT_LIMIT_BYTES,
   txLine as tx,
@@ -108,8 +109,8 @@ describe('record lines', () => {
   it('writes step start, redo, result and observation lines', () => {
     expect(stepStart('A', 'S4', 'echo hi  there')).toBe('@A.S4 want="echo hi  there"');
     expect(resultLine('A', 'S1', 'ls all..', 'ls -all.')).toBe('=A.S1 got="ls all.." want="ls -all." FAIL');
-    expect(obsLine('A', 'yes', 'no', 'no')).toBe('!A strip=yes caps=no fill=no');
-    expect(obsLine('F', 'no', 'no')).toBe('!F strip=no caps=no fill=?');
+    expect(obsLine('A', 'yes', 'no', 'no', 'no')).toBe('!A strip=yes caps=no fill=no save=no');
+    expect(obsLine('F', 'no', 'no')).toBe('!F strip=no caps=no fill=? save=?');
   });
 
   it('writes headers, with the user agent and the attributes read back from the element', () => {
@@ -146,13 +147,15 @@ describe('step table and tally', () => {
 
   it('runs S1, S4 and S6 only for variant E', () => {
     expect(VARIANT_STEPS.E).toEqual(['S1', 'S4', 'S6']);
-    expect(VARIANT_STEPS.A).toHaveLength(7);
+    expect(VARIANT_STEPS.A).toHaveLength(8);
     expect(VARIANT_STEPS.B).toHaveLength(6);
   });
 
   it('adds S7 for the shipped variant only: type past the start of the line, then d', () => {
     expect(STEPS.find((s) => s.id === 'S7')!.want).toBe('d');
-    expect(VARIANT_STEPS.A.at(-1)).toBe('S7');
+    expect(VARIANT_STEPS.A.at(-1)).toBe('S8');
+    expect(VARIANT_STEPS.J).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']);
+    expect(STEPS.find((s) => s.id === 'S8')!.want).toBe('a');
     expect(tally(['=A.S7 got="d" want="d" PASS']).A).toBe(1);
   });
 
@@ -284,17 +287,31 @@ describe('focus result lines', () => {
     expect(r.lines).not.toContain(lines[2]);
   });
 
-  it('reads the last recorded xf values, with null for one never recorded', () => {
+  it('reads the last recorded xf values of one variant, with null for one never recorded', () => {
     const snap = { v: '', s0: 0, s1: 0 };
-    expect(xfResult([])).toEqual({ focus: null, blur: null });
-    const lines = [focusLine(1, 'fo', snap, false), focusLine(2, 'fo', snap, true), focusLine(3, 'bl', snap, true), focusLine(4, 'bl', snap, false), focusLine(5, 'fo', snap)];
-    expect(xfResult(lines)).toEqual({ focus: true, blur: false });
-    expect(xfResult([lines[0]])).toEqual({ focus: false, blur: null });
+    expect(xfResult([], 'A')).toEqual({ focus: null, blur: null });
+    const lines = [
+      '#var A input type=text', focusLine(1, 'fo', snap, false), focusLine(2, 'fo', snap, true), focusLine(3, 'bl', snap, true), focusLine(4, 'bl', snap, false), focusLine(5, 'fo', snap),
+      '#var J input type=text', focusLine(6, 'fo', snap, true),
+      '#var A input type=text',
+    ];
+    expect(xfResult(lines, 'A')).toEqual({ focus: true, blur: false });
+    expect(xfResult(lines, 'J')).toEqual({ focus: true, blur: null });
+    expect(xfResult(lines.slice(0, 2), 'A')).toEqual({ focus: false, blur: null });
   });
 
-  it('writes the summary line, with ? for a missing value', () => {
-    expect(xfLine({ focus: true, blur: false })).toBe('!A xf focus=1 blur=0');
-    expect(xfLine({ focus: null, blur: null })).toBe('!A xf focus=? blur=?');
+  it('writes the per-variant summary line, with ? for a missing value', () => {
+    expect(xfLine('A', { focus: true, blur: false })).toBe('!A xf focus=1 blur=0');
+    expect(xfLine('J', { focus: null, blur: null })).toBe('!J xf focus=? blur=?');
+  });
+
+  it('takes only the lines since the last capture header, so an earlier run cannot answer for this one', () => {
+    const snap = { v: '', s0: 0, s1: 0 };
+    const old = ['#cap v1 a', '#var A input', focusLine(1, 'bl', snap, true)];
+    const now = ['#cap v1 b', '#var A input', focusLine(2, 'fo', snap, true)];
+    expect(sinceLastCapture([...old, ...now])).toEqual(now);
+    expect(xfResult(sinceLastCapture([...old, ...now]), 'A')).toEqual({ focus: true, blur: null });
+    expect(sinceLastCapture(['x'])).toEqual(['x']);
   });
 });
 
@@ -311,6 +328,12 @@ describe('autofill diagnostic variants', () => {
 
   it('keeps every variant answer line in the report', () => {
     const r = buildReport([obsLine('A', 'no', 'no', 'no'), obsLine('F', 'no', 'no', 'yes')]);
-    expect(r.lines).toEqual(['!A strip=no caps=no fill=no', '!F strip=no caps=no fill=yes']);
+    expect(r.lines).toEqual(['!A strip=no caps=no fill=no save=?', '!F strip=no caps=no fill=yes save=?']);
+  });
+});
+
+describe('empty-field diagnostic variant J', () => {
+  it('runs S1 to S8 like the shipped variant', () => {
+    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A);
   });
 });

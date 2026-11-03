@@ -31,6 +31,7 @@ import {
   stepRedo,
   stepStart,
   tally,
+  sinceLastCapture,
   xfLine,
   xfResult,
   txLine,
@@ -51,6 +52,8 @@ interface Setup {
   kind: 'xterm' | 'input';
   // The shipped setup: typing goes through `attachTouchInput`, and the logged field is its proxy.
   touchInput?: boolean;
+  // Diagnostic: the touch input keeps its field empty after every committed edit.
+  emptyField?: boolean;
   inputmode?: string;
   // How a plain input (kind `input`) is treated beyond E's create-as-password-then-text:
   // `optout` the shipped attribute set, `nope` an unrecognized autocomplete token, `late` the
@@ -60,6 +63,7 @@ interface Setup {
 
 const SETUP: Record<VariantId, Setup> = {
   A: { kind: 'xterm', touchInput: true, question: 'Shipped: touch input, a hidden input built like E. Expect no suggestion strip and no capitals.' },
+  J: { kind: 'xterm', touchInput: true, emptyField: true, question: 'Diagnostic: the shipped touch input, but its field is kept empty after every edit. Do all steps pass, S7 and S8 included?' },
   B: { kind: 'xterm', question: 'Diagnostic: xterm textarea with the text-assist attributes only.' },
   C: { kind: 'xterm', inputmode: 'email', question: 'Attributes plus inputmode=email. Do suggestions, autospace and caps stop?' },
   D: { kind: 'xterm', inputmode: 'url', question: 'Attributes plus inputmode=url. The same question for the URL type.' },
@@ -70,8 +74,8 @@ const SETUP: Record<VariantId, Setup> = {
   I: { kind: 'input', treat: 'replaced', question: 'Like E, then replaced by a clone (never a password field). Bitwarden/autofill suggestion? Strip? (Expected: suggestion gone but the strip back.)' },
 };
 
-type Obs = { strip: Answer; caps: Answer; fill: Answer };
-const UNANSWERED: Obs = { strip: '?', caps: '?', fill: '?' };
+type Obs = { strip: Answer; caps: Answer; fill: Answer; save: Answer };
+const UNANSWERED: Obs = { strip: '?', caps: '?', fill: '?', save: '?' };
 
 interface View {
   step: number;
@@ -148,7 +152,7 @@ function Page() {
       disableTextAssist(ta);
       if (setup.inputmode) ta.setAttribute('inputmode', setup.inputmode);
       if (setup.touchInput) {
-        touch = attachTouchInput(term);
+        touch = attachTouchInput(term, undefined, { emptyField: setup.emptyField });
         field = host.querySelector<HTMLInputElement>('.xterm-touch-input')!;
       } else field = ta;
     } else {
@@ -198,7 +202,7 @@ function Page() {
       if (step === steps.length - 1) {
         done = true;
         const o = obsRef.current[variant] ?? UNANSWERED;
-        append(obsLine(variant, o.strip, o.caps, o.fill));
+        append(obsLine(variant, o.strip, o.caps, o.fill, o.save));
         sync();
         return;
       }
@@ -254,12 +258,13 @@ function Page() {
     on('compositionstart', (e) => { const s = snap(); record(compLine(ms(), 'cs', (e as CompositionEvent).data, s), s); });
     on('compositionupdate', (e) => { const s = snap(); record(compLine(ms(), 'cu', (e as CompositionEvent).data, s), s); });
     on('compositionend', (e) => { const s = snap(); record(compLine(ms(), 'ce', (e as CompositionEvent).data, s), s); settle(); });
-    // The class flips in the field's own listeners, after this capture listener: read it in a microtask.
+    // The class flips in the field's own listeners, after this capture listener: read it in a timeout.
     const focusRecord = (kind: 'fo' | 'bl') => {
       const s = snap();
       const t = ms();
       if (!setup.touchInput) { record(focusLine(t, kind, s), s); return; }
-      queueMicrotask(() => { if (alive) { record(focusLine(t, kind, s, xtermFocused()), s); sync(); } });
+      // After the field's own listeners (the relay to xterm) have run, however the event was dispatched.
+      setTimeout(() => { if (alive) { record(focusLine(t, kind, s, xtermFocused()), s); sync(); } }, 0);
     };
     on('focus', () => focusRecord('fo'));
     on('blur', () => { focusRecord('bl'); settle(); });
@@ -332,13 +337,17 @@ function Page() {
     // The shipped variant always, and every other variant that has been run.
     for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
       const o = obsRef.current[v] ?? UNANSWERED;
-      for (const [k, label] of [['strip', 'suggestion strip'], ['caps', 'capitals'], ['fill', 'autofill/Bitwarden']] as const) {
+      for (const [k, label] of [['strip', 'suggestion strip'], ['caps', 'capitals'], ['fill', 'autofill/Bitwarden'], ['save', 'save-password offer']] as const) {
         if (o[k] === '?') out.push(`${v}: ${label} answer`);
       }
     }
-    const xf = xfResult(linesRef.current);
-    if (xf.focus === null) out.push('A: a focus (tap the box)');
-    if (xf.blur === null) out.push('A: a blur (tap Blur field)');
+    // Each run touch-input variant needs its own focus and blur result from this page load.
+    const page = sinceLastCapture(linesRef.current);
+    for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id) && SETUP[id].touchInput)) {
+      const xf = xfResult(page, v);
+      if (xf.focus === null) out.push(`${v}: a focus (tap the box)`);
+      if (xf.blur === null) out.push(`${v}: a blur (tap Blur field)`);
+    }
     return out;
   };
 
@@ -346,9 +355,9 @@ function Page() {
     // The answers are logged here, not only at the last step, so they are never stale or missing.
     for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
       const o = obsRef.current[v] ?? UNANSWERED;
-      append(obsLine(v, o.strip, o.caps, o.fill));
+      append(obsLine(v, o.strip, o.caps, o.fill, o.save));
+      if (SETUP[v].touchInput) append(xfLine(v, xfResult(sinceLastCapture(linesRef.current), v)));
     }
-    append(xfLine(xfResult(linesRef.current)));
     setSending(true);
     let result: { ok: boolean; code?: string };
     try {
@@ -415,6 +424,8 @@ function Page() {
         ) : (
           current === 'S7' ? (
             <>Type <code>abc</code>, press Backspace 4 times (one too many), type <code>d</code>, then Enter.</>
+          ) : current === 'S8' ? (
+            <>Type <code>abc</code>, then leave the screen untouched for about 5 seconds, press Backspace twice, then Enter. Expect <code>a</code>.</>
           ) : (
             <>Type <code>{stepWant(current)}</code> then press Enter.</>
           )
@@ -436,9 +447,9 @@ function Page() {
       </div>
       <fieldset className="obs">
         <legend>Answer after the first step</legend>
-        {(['strip', 'caps', 'fill'] as const).map((key) => (
+        {(['strip', 'caps', 'fill', 'save'] as const).map((key) => (
           <div key={key} className="row">
-            <span>{key === 'strip' ? 'Suggestion strip shown?' : key === 'caps' ? 'First letter capitalized?' : 'Bitwarden / autofill suggestion shown?'}</span>
+            <span>{key === 'strip' ? 'Suggestion strip shown?' : key === 'caps' ? 'First letter capitalized?' : key === 'fill' ? 'Bitwarden / autofill suggestion shown?' : 'Save-password offer shown?'}</span>
             {(['yes', 'no'] as const).map((value) => (
               <button key={value} type="button" tabIndex={-1} onPointerDown={keep} onClick={() => answer(key, value)} {...pressed(o[key] === value)}>
                 {value === 'yes' ? 'Yes' : 'No'}
