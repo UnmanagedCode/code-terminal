@@ -2,7 +2,7 @@
 // Every record is one line; every string is JSON-escaped so the log pastes back losslessly.
 
 export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K';
-export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8' | 'S9' | 'S10';
+export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8' | 'S9' | 'S10' | 'S11';
 export type Verdict = 'PASS' | 'TRAIL' | 'FAIL';
 export type Answer = 'yes' | 'no' | '?';
 
@@ -17,14 +17,16 @@ export const STEPS: { id: StepId; want: string }[] = [
   { id: 'S7', want: 'd' },
   // Type abc, wait about 5 s untouched, Backspace twice, then Enter.
   { id: 'S8', want: 'a' },
-  // Type abc, then tap shift, ?123 and back, open and close the emoji panel, swipe the spacebar, Enter.
+  // Type abc, then tap shift once, ?123 and back with ABC, open and close the emoji panel, Enter.
   { id: 'S9', want: 'abc' },
   // Type abcdef, hold Backspace until the field is visibly empty, then Enter.
   { id: 'S10', want: '' },
+  // Type abc, swipe the spacebar left and right, Enter. The swipe sends arrow keys, which are not judged.
+  { id: 'S11', want: 'abc' },
 ];
 
 export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
-  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10'],
+  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11'],
   B: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   C: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   D: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
@@ -37,7 +39,7 @@ export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
   // The shipped input with the field kept empty (see touchInput's `emptyField`).
   J: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
   // The shipped input plus bare-Backspace handling (see touchInput's `bareBackspace`).
-  K: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10'],
+  K: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11'],
 };
 
 const DEL = '\x7f';
@@ -126,8 +128,11 @@ export const stepStart = (id: VariantId, step: StepId, want: string) => `@${id}.
 
 export const stepRedo = (id: VariantId, step: StepId) => `@${id}.${step} redo`;
 
+// The spacebar swipe (S11) sends arrow keys; the line model shows them as `\x1b[A`..`\x1b[D`.
+const ARROW_TEXT = /\\x1b\[[ABCD]/g;
+
 export const resultLine = (id: VariantId, step: StepId, got: string, want: string) =>
-  `=${id}.${step} got=${q(got)} want=${q(want)} ${verdict(got, want)}`;
+  `=${id}.${step} got=${q(got)} want=${q(want)} ${verdict(step === 'S11' ? got.replace(ARROW_TEXT, '') : got, want)}`;
 
 // The lines since the last capture header: one page load. The log persists across loads, so an
 // earlier run must not answer for this one.
@@ -318,3 +323,24 @@ export function buildReport(lines: readonly string[], limit = REPORT_LIMIT_BYTES
   }
   return render();
 }
+
+// The report as the page sends it: only the lines since the last capture header (this page load).
+export const buildPageReport = (lines: readonly string[], limit = REPORT_LIMIT_BYTES): Report =>
+  buildReport(sinceLastCapture(lines), limit);
+
+// When the Bitwarden/autofill suggestion appeared (the `fill=yes` answer needs a trigger).
+export const FILL_CONTEXTS = [
+  { id: 'focus', label: 'right after tapping the box' },
+  { id: 'enter', label: 'on the empty field after Enter' },
+  { id: 'typing', label: 'while typing' },
+  { id: 'numbers', label: 'after the number layer (?123)' },
+  { id: 'emoji', label: 'after the emoji panel' },
+  { id: 'save', label: 'a save-password offer at the end' },
+] as const;
+export type FillContext = (typeof FILL_CONTEXTS)[number]['id'];
+
+export const fillWhenLine = (id: VariantId, when: readonly FillContext[]) => {
+  const order = FILL_CONTEXTS.map((c) => c.id);
+  const sorted = [...when].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  return `!${id} fillwhen=${sorted.length ? sorted.join(',') : '-'}`;
+};

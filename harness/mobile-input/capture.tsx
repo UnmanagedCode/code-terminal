@@ -12,7 +12,10 @@ import { attachTouchInput, type TouchInput } from '@/terminal/touchInput';
 import { TOUCH_QUERY } from '@/terminal/useTouchDevice';
 import {
   EMPTY_LINE,
-  buildReport,
+  buildPageReport,
+  fillWhenLine,
+  FILL_CONTEXTS,
+  type FillContext,
   STEPS,
   VARIANT_STEPS,
   compLine,
@@ -43,7 +46,8 @@ import {
 } from './captureLog';
 import './page.css';
 
-const VARIANT_IDS = Object.keys(VARIANT_STEPS) as VariantId[];
+// K first: it is the variant the report must contain.
+const VARIANT_IDS = ['K', ...Object.keys(VARIANT_STEPS).filter((v) => v !== 'K')] as VariantId[];
 const STORAGE_KEY = 'capture-log';
 const ATTRIBUTES = ['autocomplete', 'autocorrect', 'autocapitalize', 'spellcheck', ...Object.keys(AUTOFILL_OPT_OUT)];
 
@@ -77,8 +81,8 @@ const SETUP: Record<VariantId, Setup> = {
   I: { kind: 'input', treat: 'replaced', question: 'Like E, then replaced by a clone (never a password field). Bitwarden/autofill suggestion? Strip? (Expected: suggestion gone but the strip back.)' },
 };
 
-type Obs = { strip: Answer; caps: Answer; fill: Answer; save: Answer };
-const UNANSWERED: Obs = { strip: '?', caps: '?', fill: '?', save: '?' };
+type Obs = { strip: Answer; caps: Answer; fill: Answer; save: Answer; when: FillContext[] };
+const UNANSWERED: Obs = { strip: '?', caps: '?', fill: '?', save: '?', when: [] };
 
 interface View {
   step: number;
@@ -91,7 +95,7 @@ const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const isVariant = (s: string | null): s is VariantId => s !== null && Object.hasOwn(SETUP, s);
 const initialVariant = (): VariantId => {
   const v = new URLSearchParams(location.search).get('v');
-  return isVariant(v) ? v : 'A';
+  return isVariant(v) ? v : 'K';
 };
 const loadLog = (): string[] => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
 const stepWant = (id: string) => STEPS.find((s) => s.id === id)!.want;
@@ -104,8 +108,8 @@ function Page() {
   const [view, setView] = useState<View>({ step: 0, done: false, text: '' });
   const [obs, setObs] = useState<Partial<Record<VariantId, Obs>>>({});
   const obsRef = useRef(obs);
-  // Variants run since this page loaded (the log may hold older runs): A is always required.
-  const ranRef = useRef(new Set<VariantId>(['A']));
+  // Variants run since this page loaded (the log may hold older runs): A and K are always required.
+  const ranRef = useRef(new Set<VariantId>(['A', 'K']));
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -314,9 +318,17 @@ function Page() {
     setVariant(v);
   };
 
-  const answer = (key: keyof Obs, value: Answer) => {
+  const answer = (key: 'strip' | 'caps' | 'fill' | 'save', value: Answer) => {
     const current = obsRef.current[variant] ?? UNANSWERED;
     const next = { ...obsRef.current, [variant]: { ...current, [key]: value } };
+    obsRef.current = next;
+    setObs(next);
+  };
+
+  const toggleWhen = (ctx: FillContext) => {
+    const current = obsRef.current[variant] ?? UNANSWERED;
+    const when = current.when.includes(ctx) ? current.when.filter((c) => c !== ctx) : [...current.when, ctx];
+    const next = { ...obsRef.current, [variant]: { ...current, when } };
     obsRef.current = next;
     setObs(next);
   };
@@ -337,12 +349,17 @@ function Page() {
   // (focus the box, then tap Blur field).
   const missingForReport = (): string[] => {
     const out: string[] = [];
+    // K must have been run through every step on this page load; the report is built from it.
+    const done = tally(sinceLastCapture(linesRef.current));
+    if (done.K === 0) out.push('K: not run yet (pick K above and do S1 to S11)');
+    else if (done.K < VARIANT_STEPS.K.length) out.push(`K: steps ${done.K}/${VARIANT_STEPS.K.length} done`);
     // The shipped variant always, and every other variant that has been run.
     for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
       const o = obsRef.current[v] ?? UNANSWERED;
       for (const [k, label] of [['strip', 'suggestion strip'], ['caps', 'capitals'], ['fill', 'autofill/Bitwarden'], ['save', 'save-password offer']] as const) {
         if (o[k] === '?') out.push(`${v}: ${label} answer`);
       }
+      if (o.fill === 'yes' && o.when.length === 0) out.push(`${v}: when the autofill suggestion appeared`);
     }
     // Each run touch-input variant needs its own focus and blur result from this page load.
     const page = sinceLastCapture(linesRef.current);
@@ -359,12 +376,13 @@ function Page() {
     for (const v of VARIANT_IDS.filter((id) => ranRef.current.has(id))) {
       const o = obsRef.current[v] ?? UNANSWERED;
       append(obsLine(v, o.strip, o.caps, o.fill, o.save));
+      if (o.fill === 'yes') append(fillWhenLine(v, o.when));
       if (SETUP[v].touchInput) append(xfLine(v, xfResult(sinceLastCapture(linesRef.current), v)));
     }
     setSending(true);
     let result: { ok: boolean; code?: string };
     try {
-      const report: Report = buildReport(linesRef.current);
+      const report: Report = buildPageReport(linesRef.current);
       const bridge = (window as { ccArtifact?: { report(data: unknown): Promise<{ ok: boolean; code?: string }> } }).ccArtifact;
       result = bridge ? await bridge.report(report) : { ok: false, code: 'NO_BRIDGE' };
     } catch (e) {
@@ -428,7 +446,11 @@ function Page() {
           current === 'S7' ? (
             <>Type <code>abc</code>, press Backspace 4 times (one too many), type <code>d</code>, then Enter.</>
           ) : current === 'S9' ? (
-            <>Type <code>abc</code>, then tap shift, tap ?123 and back, open and close the emoji panel, and swipe the spacebar. Then Enter. Nothing should be deleted: expect <code>abc</code>.</>
+            <>
+              Type <code>abc</code>. Then, without typing anything: tap shift once; tap the key labelled <strong>?123</strong> to open the number layer, then the <strong>ABC</strong> key to return; open the emoji panel and close it again. Then Enter. Expect <code>abc</code>.
+            </>
+          ) : current === 'S11' ? (
+            <>Type <code>abc</code>, then swipe the spacebar left and right a few times (it sends arrow keys, which move the shell cursor and are not judged). Then Enter. Expect <code>abc</code>.</>
           ) : current === 'S10' ? (
             <>Type <code>abcdef</code>, hold Backspace until the field is visibly empty, then Enter. Expect an empty line.</>
           ) : current === 'S8' ? (
@@ -437,7 +459,7 @@ function Page() {
             <>Type <code>{stepWant(current)}</code> then press Enter.</>
           )
         )}
-        <div className="hint">Tap keys only: no swipe, no suggestions, no voice.</div>
+        <div className="hint">Tap keys only: no swipe typing, no suggestions, no voice (the S11 spacebar swipe is the exception).</div>
       </div>
       <div className="shell">
         {SETUP[variant].kind === 'xterm' ? 'Shell would see' : 'Field would send'}: <code>{view.text}</code>
@@ -464,6 +486,16 @@ function Page() {
             ))}
           </div>
         ))}
+        {o.fill === 'yes' && (
+          <div className="row">
+            <span>When did it appear? (any)</span>
+            {FILL_CONTEXTS.map((c) => (
+              <button key={c.id} type="button" tabIndex={-1} onPointerDown={keep} onClick={() => toggleWhen(c.id)} {...pressed(o.when.includes(c.id))}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </fieldset>
       <div className="row">
         <button type="button" tabIndex={-1} onPointerDown={keep} onClick={copyLog}>Copy log</button>

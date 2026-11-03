@@ -16,7 +16,7 @@ const CHECKLIST = [
   'Tap the box and type ls straight away: it appears in order (not reversed). No suggestion strip, no capital first letter. Switch to another app and back, then type again.',
   'Backspace: type abc, then 4 × Backspace logs 3 × \\x7f and a 4th \\x7f (the keyboard sends it on an empty field). Holding Backspace never logs doubles or stops.',
   'Type ls -all. then Enter: the sent bytes are exactly ls -all.\\r, with no stray space after - or . and no doubled characters.',
-  'Swipe the spacebar: the touch input pins the caret to the end, so the cursor should not move. Note what the trace shows (arrow keys, nothing, or edits), then try swipe typing and voice input and note whether they still work.',
+  'Swipe the spacebar left and right: SwiftKey sends real arrow keys, which the touch input forwards as \\x1b[D / \\x1b[C, so the shell cursor moves. Then try swipe typing and voice input and note whether they still work.',
   'Bar Ctrl then soft-keyboard c logs \\x03. The arrows log \\x1b[A and so on. Long-press paste logs the pasted text only; note any password-manager prompt.',
 ];
 

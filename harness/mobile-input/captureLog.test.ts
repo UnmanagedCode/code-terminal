@@ -22,6 +22,9 @@ import {
   xfLine,
   xfResult,
   sinceLastCapture,
+  buildPageReport,
+  fillWhenLine,
+  FILL_CONTEXTS,
   parseCaptureLog,
   REPORT_LIMIT_BYTES,
   txLine as tx,
@@ -147,13 +150,13 @@ describe('step table and tally', () => {
 
   it('runs S1, S4 and S6 only for variant E', () => {
     expect(VARIANT_STEPS.E).toEqual(['S1', 'S4', 'S6']);
-    expect(VARIANT_STEPS.A).toHaveLength(10);
+    expect(VARIANT_STEPS.A).toHaveLength(11);
     expect(VARIANT_STEPS.B).toHaveLength(6);
   });
 
   it('adds S7 for the shipped variant only: type past the start of the line, then d', () => {
     expect(STEPS.find((s) => s.id === 'S7')!.want).toBe('d');
-    expect(VARIANT_STEPS.A.at(-1)).toBe('S10');
+    expect(VARIANT_STEPS.A.at(-1)).toBe('S11');
     expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
     expect(STEPS.find((s) => s.id === 'S8')!.want).toBe('a');
     expect(tally(['=A.S7 got="d" want="d" PASS']).A).toBe(1);
@@ -323,8 +326,8 @@ describe('parsing a trimmed report', () => {
 });
 
 describe('bare Backspace variant K and the no-op key steps', () => {
-  it('runs S1 to S10 on A and K', () => {
-    expect(VARIANT_STEPS.K).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10']);
+  it('runs S1 to S11 on A and K', () => {
+    expect(VARIANT_STEPS.K).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11']);
     expect(VARIANT_STEPS.A).toEqual(VARIANT_STEPS.K);
   });
 
@@ -361,5 +364,32 @@ describe('autofill diagnostic variants', () => {
 describe('empty-field diagnostic variant J', () => {
   it('runs S1 to S8, the shipped variant\'s steps up to S8', () => {
     expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
+  });
+});
+
+describe('the swipe observation step and report scope', () => {
+  it('S11 is the spacebar swipe: abc, with the arrow keys it sends allowed, so S9 stays a no-spurious-DEL check', () => {
+    expect(STEPS.find((s) => s.id === 'S11')!.want).toBe('abc');
+    expect(STEPS.find((s) => s.id === 'S9')!.want).toBe('abc');
+  });
+
+  it('judges S11 without the arrow sequences the swipe sends, and keeps the raw line in the log', () => {
+    const line = resultLine('K', 'S11', 'abc\\x1b[D\\x1b[D\\x1b[C', 'abc');
+    expect(line).toBe('=K.S11 got="abc\\\\x1b[D\\\\x1b[D\\\\x1b[C" want="abc" PASS');
+    expect(resultLine('K', 'S11', 'ab\\x1b[D', 'abc')).toContain(' FAIL');
+    expect(resultLine('K', 'S9', 'abc\\x1b[C', 'abc')).toContain(' FAIL'); // S9 allows no arrows
+  });
+
+  it('builds the report from the lines since the last capture header only', () => {
+    const lines = ['#cap v1 old', '@B.S1 want="x"', '1 tx "old"', '=B.S1 got="y" want="x" FAIL', '#cap v1 new', '@K.S1 want="x"', '2 tx "new"', '=K.S1 got="y" want="x" FAIL'];
+    const r = buildPageReport(lines);
+    expect(r.lines).toEqual(['#cap v1 new', '@K.S1 want="x"', '2 tx "new"', '=K.S1 got="y" want="x" FAIL']);
+  });
+
+  it('writes when the autofill suggestion appeared, as a comma list of known contexts', () => {
+    expect(FILL_CONTEXTS.map((c) => c.id)).toEqual(expect.arrayContaining(['enter', 'numbers', 'emoji']));
+    expect(fillWhenLine('A', ['numbers', 'enter'])).toBe('!A fillwhen=enter,numbers');
+    expect(fillWhenLine('A', [])).toBe('!A fillwhen=-');
+    expect(buildReport([fillWhenLine('A', ['emoji'])]).lines).toEqual(['!A fillwhen=emoji']);
   });
 });
