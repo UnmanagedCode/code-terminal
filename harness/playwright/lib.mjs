@@ -83,7 +83,8 @@ export async function waitUnwrapped(pane, pattern, what = String(pattern), ms) {
 export async function typeLine(page, pane, text) {
   await pane.locator('.pane-terminal').click();
   // A menu that just closed hands focus back to its trigger; keys typed before the terminal has it go astray.
-  const input = pane.locator('textarea.xterm-helper-textarea');
+  // On touch the hidden proxy takes the keys and xterm's own textarea is disabled.
+  const input = pane.locator('textarea.xterm-helper-textarea:not(:disabled), input.xterm-touch-input');
   await until(() => input.evaluate((el) => el === el.ownerDocument.activeElement && el.ownerDocument.hasFocus()), 'the terminal to have focus');
   await page.keyboard.type(text);
   await page.keyboard.press('Enter');

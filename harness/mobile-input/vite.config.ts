@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: path.join(here, 'dist'),
     emptyOutDir: true,
     rollupOptions: {
-      input: { index: path.join(here, 'index.html'), capture: path.join(here, 'capture.html') },
+      input: { index: path.join(here, 'index.html'), capture: path.join(here, 'capture.html'), scroll: path.join(here, 'scroll.html') },
     },
   },
 });

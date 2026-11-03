@@ -17,6 +17,7 @@ import { activateLink, linkTip, type LinkTip } from './links';
 import { connectSession, type ConnState, type Connection } from './socket';
 import { disableTextAssist } from './softKeyboard';
 import { attachTouchInput, type TouchInput } from './touchInput';
+import { attachTouchScroll } from './touchScroll';
 import { onThemeChange, terminalTheme, TERMINAL_FONT } from './theme';
 import { useTouchDevice } from './useTouchDevice';
 
@@ -50,6 +51,7 @@ const isOver = (s: ConnState) => s.kind === 'exited' || s.kind === 'failed' || s
 
 export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClose, onSessionReplaced }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const conn = useRef<Connection | null>(null);
   const touchInput = useRef<TouchInput | null>(null);
@@ -150,7 +152,9 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
     if (!touch || !opened) return;
     const attached = attachTouchInput(opened);
     touchInput.current = attached;
+    const scroll = body.current ? attachTouchScroll(opened, body.current) : null;
     return () => {
+      scroll?.dispose();
       attached.dispose();
       touchInput.current = null;
     };
@@ -208,7 +212,7 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
           <button type="button" className="icon-button" aria-label="Close shell" title="Close shell" onClick={onClose}><CloseIcon /></button>
         </span>
       </header>
-      <div className="pane-body">
+      <div className="pane-body" ref={body}>
         <div className="pane-terminal" ref={host} />
         {note && (
           <div className={`pane-state pane-state-${state.kind}`} role="status">

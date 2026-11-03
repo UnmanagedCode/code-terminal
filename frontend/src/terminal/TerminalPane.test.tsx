@@ -378,6 +378,19 @@ describe('TerminalPane', () => {
         expect(textarea().disabled).toBe(true);
       });
 
+      test('the pane body blocks native panning on touch only, and follows the gate', async () => {
+        const panBlocked = () => {
+          const v = document.querySelector<HTMLElement>('.pane-body')!.style.touchAction;
+          return v === 'none' || v === 'pinch-zoom';
+        };
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        expect(panBlocked()).toBe(true);
+        mqlMatches = false;
+        act(() => mqlListeners.forEach((f) => f()));
+        expect(panBlocked()).toBe(false);
+      });
+
       test('typing into the proxy reaches the pty, and a bar Ctrl then c sends ETX', async () => {
         await renderTouch();
         await waitFor(() => expect(proxy()).not.toBeNull());
