@@ -83,6 +83,14 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     if (pendingClear) endComposition();
     else composing = false;
   };
+  // Keep the caret at the end: the shell line is edited only at its end, and the keyboard deletes
+  // before the caret, so a caret it has moved (SwiftKey drifts it to 0 while idle) turns Backspace
+  // into a no-op with no event at all. Skipped while composing, which owns the selection.
+  const pin = () => {
+    if (composing) return;
+    const len = el.value.length;
+    if (el.selectionStart !== len || el.selectionEnd !== len) el.setSelectionRange(len, len);
+  };
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
     if (!(e as InputEvent).isComposing) {
@@ -115,7 +123,10 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
 
   const onKeyDown = (e: Event) => {
     const k = e as KeyboardEvent;
-    if (k.isComposing || k.keyCode === 229) return;
+    if (k.isComposing || k.keyCode === 229) {
+      if (!k.isComposing) pin();
+      return;
+    }
     endStale(); // flush held composition text before the key's own bytes
     if (handleClipboardKey(t, k, clipboard, clear)) {
       k.preventDefault();
@@ -144,7 +155,12 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   // xterm keeps its focused state (cursor style, `focus` class, DECSET 1004 reports) through
   // events on its textarea, which is disabled and so can never gain focus itself.
   const relay = (type: 'focus' | 'blur') => () => { textarea.dispatchEvent(new FocusEvent(type)); };
-  const onFocus = relay('focus');
+  const relayFocus = relay('focus');
+  const onFocus = () => {
+    pin();
+    relayFocus();
+  };
+  const onSelectionChange = () => { if (document.activeElement === el) pin(); };
   const relayBlur = relay('blur');
   // An IME may cancel a composition on blur without `compositionend`; stuck state would block clears.
   const onBlur = () => {
@@ -164,6 +180,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     [el, 'blur', onBlur],
     [element, 'mousedown', onMouseDown],
   ];
+  listeners.push([document, 'selectionchange', onSelectionChange]);
   for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
 
   // After a command is sent the keyboard's context should be an empty field, as xterm leaves it.

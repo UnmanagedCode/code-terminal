@@ -31,6 +31,8 @@ import {
   stepRedo,
   stepStart,
   tally,
+  xfLine,
+  xfResult,
   txLine,
   type Answer,
   type Line,
@@ -302,7 +304,26 @@ function Page() {
     setRun((r) => r + 1);
   };
 
+  // What must be answered before the report is worth sending: the strip and caps toggles, and for
+  // the shipped variant both xterm focus results (focus the box, then tap Blur field).
+  const missingForReport = (): string[] => {
+    const o = obsRef.current[variant] ?? UNANSWERED;
+    const out: string[] = [];
+    if (o.strip === '?') out.push('suggestion strip answer');
+    if (o.caps === '?') out.push('capitals answer');
+    if (SETUP[variant].touchInput) {
+      const xf = xfResult(linesRef.current);
+      if (xf.focus === null) out.push('a focus (tap the box)');
+      if (xf.blur === null) out.push('a blur (tap Blur field)');
+    }
+    return out;
+  };
+
   const sendResults = async () => {
+    // The answers are logged here, not only at the last step, so they are never stale or missing.
+    const o = obsRef.current[variant] ?? UNANSWERED;
+    append(obsLine(variant, o.strip, o.caps));
+    if (SETUP[variant].touchInput) append(xfLine(xfResult(linesRef.current)));
     setSending(true);
     let result: { ok: boolean; code?: string };
     try {
@@ -338,6 +359,8 @@ function Page() {
   const current = steps[Math.min(view.step, steps.length - 1)];
   const o = obs[variant] ?? UNANSWERED;
   const counts = tally(lines);
+  // Read from the refs on every render; `lines` and `obs` are the state that triggers it.
+  const missing = missingForReport();
   const pressed = (on: boolean) => ({ 'aria-pressed': on, className: on ? 'on' : '' });
   // Every button keeps the soft keyboard up: a prevented pointerdown suppresses the focus change.
   const keep = (e: { preventDefault(): void }) => e.preventDefault();
@@ -401,9 +424,10 @@ function Page() {
       </fieldset>
       <div className="row">
         <button type="button" tabIndex={-1} onPointerDown={keep} onClick={copyLog}>Copy log</button>
-        <button type="button" tabIndex={-1} onPointerDown={keep} disabled={sending} onClick={() => void sendResults()}>Send results</button>
+        <button type="button" tabIndex={-1} onPointerDown={keep} disabled={sending || missing.length > 0} onClick={() => void sendResults()}>Send results</button>
         <button type="button" tabIndex={-1} onPointerDown={keep} onClick={clearLog}>Clear log</button>
         <span role="status">{note}</span>
+        {missing.length > 0 && <span className="warn">Send results needs: {missing.join(', ')}</span>}
       </div>
       <textarea ref={boxRef} className="log" readOnly rows={3} aria-label="Capture log" value={lines.join('\n')} />
     </main>

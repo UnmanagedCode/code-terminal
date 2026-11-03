@@ -19,6 +19,8 @@ import {
   txLine,
   verdict,
   buildReport,
+  xfLine,
+  xfResult,
   parseCaptureLog,
   REPORT_LIMIT_BYTES,
   txLine as tx,
@@ -229,7 +231,7 @@ describe('buildReport', () => {
   ];
   const size = (r: unknown) => new TextEncoder().encode(JSON.stringify(r)).length;
 
-  it('keeps every # @ = ! line and the events of FAIL steps only, in order', () => {
+  it('keeps every # @ = ! line and the events of FAIL steps only, in order (focus lines aside)', () => {
     const lines = ['#cap v1', ...step('A', 'S1', 'PASS', 2), ...step('A', 'S2', 'FAIL', 3), ...step('A', 'S3', 'TRAIL', 2), '!A strip=no caps=no'];
     const r = buildReport(lines);
     expect(r.kind).toBe('swiftkey-capture');
@@ -269,5 +271,28 @@ describe('buildReport', () => {
     expect(size(r)).toBeLessThanOrEqual(REPORT_LIMIT_BYTES);
     expect(REPORT_LIMIT_BYTES).toBe(32768);
     expect(r.lines.filter((l) => l.startsWith('='))).toHaveLength(27);
+  });
+});
+
+describe('focus result lines', () => {
+  it('keeps focus and blur lines of PASS steps in the report, so the xterm focus check always arrives', () => {
+    const lines = ['@A.S1 want="x"', focusLine(1, 'fo', { v: '', s0: 0, s1: 0 }, true), txLine(2, 'x'), focusLine(3, 'bl', { v: '', s0: 0, s1: 0 }, false), '=A.S1 got="x" want="x" PASS'];
+    const r = buildReport(lines);
+    expect(r.lines).toContain(lines[1]);
+    expect(r.lines).toContain(lines[3]);
+    expect(r.lines).not.toContain(lines[2]);
+  });
+
+  it('reads the last recorded xf values, with null for one never recorded', () => {
+    const snap = { v: '', s0: 0, s1: 0 };
+    expect(xfResult([])).toEqual({ focus: null, blur: null });
+    const lines = [focusLine(1, 'fo', snap, false), focusLine(2, 'fo', snap, true), focusLine(3, 'bl', snap, true), focusLine(4, 'bl', snap, false), focusLine(5, 'fo', snap)];
+    expect(xfResult(lines)).toEqual({ focus: true, blur: false });
+    expect(xfResult([lines[0]])).toEqual({ focus: false, blur: null });
+  });
+
+  it('writes the summary line, with ? for a missing value', () => {
+    expect(xfLine({ focus: true, blur: false })).toBe('!A xf focus=1 blur=0');
+    expect(xfLine({ focus: null, blur: null })).toBe('!A xf focus=? blur=?');
   });
 });

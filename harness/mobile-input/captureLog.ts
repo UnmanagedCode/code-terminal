@@ -114,6 +114,19 @@ export const stepRedo = (id: VariantId, step: StepId) => `@${id}.${step} redo`;
 export const resultLine = (id: VariantId, step: StepId, got: string, want: string) =>
   `=${id}.${step} got=${q(got)} want=${q(want)} ${verdict(got, want)}`;
 
+// The last recorded xterm focus-class flag after a focus and after a blur (variant A logs `xf=`).
+export function xfResult(lines: readonly string[]): { focus: boolean | null; blur: boolean | null } {
+  const out: { focus: boolean | null; blur: boolean | null } = { focus: null, blur: null };
+  for (const line of lines) {
+    const m = /^\d+ (fo|bl) .* xf=([01])$/.exec(line);
+    if (m) out[m[1] === 'fo' ? 'focus' : 'blur'] = m[2] === '1';
+  }
+  return out;
+}
+
+const flag = (v: boolean | null) => (v === null ? '?' : v ? '1' : '0');
+export const xfLine = (r: { focus: boolean | null; blur: boolean | null }) => `!A xf focus=${flag(r.focus)} blur=${flag(r.blur)}`;
+
 export const obsLine = (id: VariantId, strip: Answer, caps: Answer) => `!${id} strip=${strip} caps=${caps}`;
 
 // Done steps per variant: distinct steps with a `=` result line, so a redo is counted once.
@@ -227,6 +240,8 @@ export interface Report {
   lines: string[];
 }
 
+const FOCUS_LINE = /^\d+ (?:fo|bl) /;
+
 const utf8Size = (r: Report) => new TextEncoder().encode(JSON.stringify(r)).length;
 
 // Headers, step starts, verdicts and observations always go; event lines only for steps that
@@ -246,8 +261,8 @@ export function buildReport(lines: readonly string[], limit = REPORT_LIMIT_BYTES
     } else if (c === '=') {
       if (cur && !line.endsWith(' FAIL')) cur.failed = false;
       kept.push(line);
-    } else if (c === '#' || c === '!') {
-      kept.push(line);
+    } else if (c === '#' || c === '!' || FOCUS_LINE.test(line)) {
+      kept.push(line); // focus and blur lines carry the xterm focus result: kept for every step
     } else if (cur) {
       cur.events.push(line);
     }

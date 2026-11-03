@@ -3,8 +3,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Terminal } from '@xterm/xterm';
 import { EMPTY_LINE, feedLine, lineText, parseCaptureLog, type LogEvent } from '../../../harness/mobile-input/captureLog';
-import { replayStep } from '../test/replay';
+import { backspaceKey, driftCaret, insertAtCaret, replayStep } from '../test/replay';
 import LOG from './fixtures/swiftkey-capture-log.txt?raw';
+import S7_LOG from './fixtures/swiftkey-s7-log.txt?raw';
 import { attachTouchInput } from './touchInput';
 
 const STEPS = parseCaptureLog(LOG).filter((s) => s.verdict !== undefined);
@@ -626,5 +627,71 @@ describe('key handling edge cases', () => {
     fire('compositionend', { data: 'Xbc' });
     expect(sent()).toBe('ab');
     expect(el.value).toBe('');
+  });
+});
+
+describe('the caret stays at the end of the field', () => {
+  const caretAtEnd = () => [el.selectionStart, el.selectionEnd];
+
+  test('A.S7 from the device: abc, the caret drifts to 0 while idle, four Backspaces (three bare 229 pairs, one Backspace key), then d: the shell ends with d and the field is empty', () => {
+    el.focus();
+    const events = parseCaptureLog(S7_LOG)[0].events;
+    const typed = events.findIndex((e) => e.ms === 4937); // ku after the third character
+    replay(events.slice(0, typed + 1));
+    expect(el.value).toBe('abc');
+    const drift = events.find((e) => e.ms === 8118)!; // ku "Unidentified" 229 v="abc" s=0,0, no input event before it
+    expect(drift).toMatchObject({ v: 'abc', s0: 0, s1: 0 });
+    driftCaret(el, 0);
+    for (const code of [229, 229, 229, 8] as const) backspaceKey(el, code);
+    insertAtCaret(el, 'd');
+    expect(el.value).toBe('d');
+    expect(shellLine()).toBe('d');
+    press('Enter', 13);
+    expect(shellLine()).toBe('d');
+    expect(el.value).toBe('');
+  });
+
+  test('a caret that moved without an input event is put back on selectionchange', () => {
+    el.focus();
+    typeText('abc');
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('a 229 keydown puts back a caret that moved without any event', () => {
+    typeText('abc');
+    el.setSelectionRange(1, 1);
+    press('Unidentified', 229);
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('gaining focus puts the caret at the end', () => {
+    typeText('abc');
+    el.blur();
+    el.setSelectionRange(0, 0);
+    el.focus();
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('during a composition the caret is left alone', () => {
+    el.focus();
+    fire('compositionstart', { data: '' });
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    driftCaret(el, 0);
+    press('Unidentified', 229);
+    expect(caretAtEnd()).toEqual([0, 0]);
+    fire('compositionend', { data: 'ab' });
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([2, 2]);
+  });
+
+  test('after dispose the caret is no longer touched', () => {
+    typeText('abc');
+    touch.dispose();
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([0, 0]);
+    touch = attachTouchInput(t, clipboard);
   });
 });

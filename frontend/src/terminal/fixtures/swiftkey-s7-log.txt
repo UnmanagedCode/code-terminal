@@ -1,0 +1,36 @@
+@A.S7 want="d"
+69 ku "Enter" "" 13 v="" s=0,0
+3505 kd "Unidentified" "" 229 v="" s=0,0
+3614 bi "insertText" "a" c0 v="" s=0,0
+3667 in "insertText" "a" c0 v="a" s=0,0
+3674 tx "a"
+3783 ku "Unidentified" "" 229 v="a" s=1,1
+4219 kd "Unidentified" "" 229 v="a" s=1,1
+4301 bi "insertText" "b" c0 v="a" s=1,1
+4342 in "insertText" "b" c0 v="ab" s=0,0
+4349 tx "b"
+4432 ku "Unidentified" "" 229 v="ab" s=2,2
+4715 kd "Unidentified" "" 229 v="ab" s=2,2
+4782 bi "insertText" "c" c0 v="ab" s=2,2
+4825 in "insertText" "c" c0 v="abc" s=0,0
+4832 tx "c"
+4937 ku "Unidentified" "" 229 v="abc" s=3,3
+8006 kd "Unidentified" "" 229 v="abc" s=3,3
+8118 ku "Unidentified" "" 229 v="abc" s=0,0
+8751 kd "Unidentified" "" 229 v="abc" s=0,0
+8839 ku "Unidentified" "" 229 v="abc" s=0,0
+9444 kd "Unidentified" "" 229 v="abc" s=0,0
+9518 ku "Unidentified" "" 229 v="abc" s=0,0
+10245 kd "Backspace" "" 8 v="abc" s=0,0
+10343 bi "deleteContentBackward" null c0 v="abc" s=0,0
+10403 ku "Backspace" "" 8 v="abc" s=0,0
+14515 kd "Unidentified" "" 229 v="abc" s=0,0
+14644 bi "insertText" "d" c0 v="abc" s=0,0
+14698 in "insertText" "d" c0 v="dabc" s=0,0
+14705 tx "\u007f\u007f\u007f"
+14706 tx "dabc"
+14815 ku "Unidentified" "" 229 v="dabc" s=4,4
+16549 kd "Enter" "" 13 v="dabc" s=4,4
+16617 tx "\r"
+16662 ku "Enter" "" 13 v="" s=0,0
+=A.S7 got="dabc" want="d" FAIL
