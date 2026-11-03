@@ -128,6 +128,8 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   };
   // Pending DELs go out now, in order. Timers are cleared first, so a DEL sent here cannot flush again.
   const flushPending = () => {
+    // The host's onData flushes before every send, including the DEL being sent right now.
+    if (sendingBare) return;
     const n = pending.size;
     cancelPending();
     for (let i = 0; i < n; i++) applyBare();
@@ -143,6 +145,10 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   };
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
+    // An edit means the browser did delete (or typed) after all. Cancel before mirroring: with an
+    // input that had no beforeinput, the host's flush during the mirror send would otherwise pop
+    // the character just inserted.
+    noteEdit();
     if (!(e as InputEvent).isComposing) {
       if (pendingClear) { endComposition(); return; }
       composing = false;

@@ -240,6 +240,64 @@ describe('TerminalPane', () => {
         } finally { vi.useRealTimers(); }
       });
 
+      test('two pairs 25 ms apart with Alt armed send two plain DELs and leave Alt armed', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        sendInput.mockClear();
+        fireEvent.click(key('Alt'));
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(25); });
+          bare();
+          act(() => { vi.advanceTimersByTime(200); });
+          expect(sentBytes()).toEqual(['\x7f', '\x7f']);
+          expect(proxy().value).toBe('a');
+          expect(key('Alt').getAttribute('aria-pressed')).toBe('true');
+        } finally { vi.useRealTimers(); }
+      });
+
+      test('the same with Ctrl locked: two plain DELs, still locked', async () => {
+        const now = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(100).mockReturnValue(1000);
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        fireEvent.click(key('Control'));
+        fireEvent.click(key('Control'));
+        expect(key('Control').getAttribute('data-mod-state')).toBe('locked');
+        sendInput.mockClear();
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(25); });
+          bare();
+          act(() => { vi.advanceTimersByTime(200); });
+          expect(sentBytes()).toEqual(['\x7f', '\x7f']);
+          expect(key('Control').getAttribute('data-mod-state')).toBe('locked');
+        } finally { vi.useRealTimers(); now.mockRestore(); }
+      });
+
+      test('a character typed inside the guard cancels the DEL whether or not beforeinput fired: the field and the shell agree', async () => {
+        for (const withBeforeInput of [false, true]) {
+          cleanup();
+          sendInput.mockClear();
+          await renderTouch();
+          await waitFor(() => expect(proxy()).not.toBeNull());
+          typeInto('ab');
+          sendInput.mockClear();
+          vi.useFakeTimers();
+          try {
+            bare();
+            if (withBeforeInput) fireEvent(proxy(), new InputEvent('beforeinput', { inputType: 'insertText', data: 'c', bubbles: true, cancelable: true }));
+            typeInto('c');
+            act(() => { vi.advanceTimersByTime(200); });
+            expect(sentBytes(), `beforeinput=${withBeforeInput}`).toEqual(['c']);
+            expect(proxy().value).toBe('abc');
+          } finally { vi.useRealTimers(); }
+        }
+      });
+
       test('a bar key tapped inside the guard goes out after the DEL, not before it', async () => {
         await renderTouch();
         await waitFor(() => expect(proxy()).not.toBeNull());
