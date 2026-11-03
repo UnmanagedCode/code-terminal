@@ -1,0 +1,1677 @@
+#cap v1 2026-11-02T22:15:55Z "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
+#vp 411x728@2.625 touch=1
+#var A ta autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=- placeholder="x"
+@A.S1 want="ls -all."
+8862 fo v="x" s=1,1
+10818 kd "Unidentified" "" 229 v="x" s=1,1
+10831 bi "insertText" "L" c0 v="x" s=1,1
+10842 in "insertText" "L" c0 v="xL" s=0,0
+10849 ku "Unidentified" "" 229 v="xL" s=0,0
+10863 tx "L"
+11218 kd "Unidentified" "" 229 v="xL" s=0,0
+11229 bi "insertText" "s" c0 v="xL" s=0,0
+11239 in "insertText" "s" c0 v="sxL" s=0,0
+11245 ku "Unidentified" "" 229 v="sxL" s=0,0
+11259 tx "s"
+13499 cs "" v="sxL" s=0,0
+13515 kd "Unidentified" "" 229 v="sxL" s=0,0
+13522 bi "insertText" "LS" c0 v="sxL" s=0,0
+13531 in "insertText" "LS" c0 v="LSsxL" s=0,0
+13533 ku "Unidentified" "" 229 v="LSsxL" s=0,0
+13535 kd "Unidentified" "" 229 v="LSsxL" s=0,0
+13537 bi "insertText" " " c0 v="LSsxL" s=0,0
+13540 in "insertText" " " c0 v=" LSsxL" s=0,0
+13543 ku "Unidentified" "" 229 v=" LSsxL" s=0,0
+15915 kd "Unidentified" "" 229 v=" LSsxL" s=0,0
+15921 bi "insertText" "-" c0 v=" LSsxL" s=0,0
+15927 in "insertText" "-" c0 v="- LSsxL" s=0,0
+15932 ku "Unidentified" "" 229 v="- LSsxL" s=0,0
+18615 kd "Unidentified" "" 229 v="- LSsxL" s=0,0
+18628 bi "insertText" "A" c0 v="- LSsxL" s=0,0
+18638 in "insertText" "A" c0 v="A- LSsxL" s=0,0
+18644 ku "Unidentified" "" 229 v="A- LSsxL" s=0,0
+19252 kd "Unidentified" "" 229 v="A- LSsxL" s=0,0
+19270 bi "insertText" "l" c0 v="A- LSsxL" s=0,0
+19283 in "insertText" "l" c0 v="lA- LSsxL" s=0,0
+19292 ku "Unidentified" "" 229 v="lA- LSsxL" s=0,0
+19519 kd "Unidentified" "" 229 v="lA- LSsxL" s=0,0
+19527 bi "insertText" "l" c0 v="lA- LSsxL" s=0,0
+19535 in "insertText" "l" c0 v="llA- LSsxL" s=0,0
+19541 ku "Unidentified" "" 229 v="llA- LSsxL" s=0,0
+23824 cs "" v="llA- LSsxL" s=0,0
+23839 kd "Unidentified" "" 229 v="llA- LSsxL" s=0,0
+23852 cs "" v="llA- LSsxL" s=0,0
+23857 cu "All" v="llA- LSsxL" s=0,0
+23866 bi "insertCompositionText" "All" c1 v="llA- LSsxL" s=0,0
+23869 in "insertCompositionText" "All" c1 v="AllllA- LSsxL" s=3,3
+23872 ku "Unidentified" "" 229 v="AllllA- LSsxL" s=3,3
+23876 ce "All" v="AllllA- LSsxL" s=3,3
+23880 kd "Unidentified" "" 229 v="AllllA- LSsxL" s=3,3
+23883 bi "insertText" "." c0 v="AllllA- LSsxL" s=3,3
+23886 in "insertText" "." c0 v="All.llA- LSsxL" s=4,4
+23888 ku "Unidentified" "" 229 v="All.llA- LSsxL" s=4,4
+23891 kd "Unidentified" "" 229 v="All.llA- LSsxL" s=4,4
+23894 bi "insertText" " " c0 v="All.llA- LSsxL" s=4,4
+23898 in "insertText" " " c0 v="All. llA- LSsxL" s=5,5
+23901 ku "Unidentified" "" 229 v="All. llA- LSsxL" s=5,5
+23916 tx "LSsxL"
+27278 kd "Enter" "" 13 v="All. llA- LSsxL" s=5,5
+27293 tx "\r"
+=A.S1 got="LsLSsxL" want="ls -all." FAIL
+@A.S2 want="ls -all x."
+14 ku "Enter" "" 13 v="" s=0,0
+45 ~ v="x" s=1,1
+4004 kd "Unidentified" "" 229 v="x" s=1,1
+4026 bi "insertText" "l" c0 v="x" s=1,1
+4039 in "insertText" "l" c0 v="xl" s=2,2
+4048 ku "Unidentified" "" 229 v="xl" s=2,2
+4063 tx "l"
+4386 kd "Unidentified" "" 229 v="xl" s=2,2
+4407 bi "insertText" "s" c0 v="xl" s=2,2
+4423 in "insertText" "s" c0 v="xls" s=3,3
+4435 ku "Unidentified" "" 229 v="xls" s=3,3
+4450 tx "s"
+4929 cs "" v="xls" s=3,3
+4952 cu "xls" v="xls" s=3,3
+4967 kd "Unidentified" "" 229 v="xls" s=3,3
+4979 cu "xls" v="xls" s=0,3
+4988 bi "insertCompositionText" "xls" c1 v="xls" s=0,3
+4995 in "insertCompositionText" "xls" c1 v="xls" s=3,3
+5001 ku "Unidentified" "" 229 v="xls" s=3,3
+5007 ce "xls" v="xls" s=3,3
+5013 kd "Unidentified" "" 229 v="xls" s=3,3
+5018 bi "insertText" " " c0 v="xls" s=3,3
+5023 in "insertText" " " c0 v="xls " s=4,4
+5028 ku "Unidentified" "" 229 v="xls " s=4,4
+5040 tx " "
+6210 kd "Unidentified" "" 229 v="xls " s=4,4
+6236 bi "insertText" "-" c0 v="xls " s=4,4
+6251 in "insertText" "-" c0 v="xls -" s=5,5
+6263 ku "Unidentified" "" 229 v="xls -" s=5,5
+6272 kd "Unidentified" "" 229 v="xls -" s=5,5
+6278 bi "insertText" " " c0 v="xls -" s=5,5
+6285 in "insertText" " " c0 v="xls - " s=6,6
+6290 ku "Unidentified" "" 229 v="xls - " s=6,6
+6305 tx "- "
+6306 tx " "
+8178 kd "Unidentified" "" 229 v="xls - " s=6,6
+8194 bi "insertText" "a" c0 v="xls - " s=6,6
+8206 in "insertText" "a" c0 v="xls - a" s=7,7
+8212 ku "Unidentified" "" 229 v="xls - a" s=7,7
+8228 tx "a"
+8722 kd "Unidentified" "" 229 v="xls - a" s=7,7
+8738 bi "insertText" "l" c0 v="xls - a" s=7,7
+8749 in "insertText" "l" c0 v="xls - al" s=8,8
+8754 ku "Unidentified" "" 229 v="xls - al" s=8,8
+8769 tx "l"
+8943 kd "Unidentified" "" 229 v="xls - al" s=8,8
+8962 bi "insertText" "l" c0 v="xls - al" s=8,8
+8974 in "insertText" "l" c0 v="xls - all" s=9,9
+8981 ku "Unidentified" "" 229 v="xls - all" s=9,9
+8996 tx "l"
+10943 cs "" v="xls - all" s=9,9
+10969 cu "all" v="xls - all" s=9,9
+10979 kd "Unidentified" "" 229 v="xls - all" s=9,9
+10986 cu "all" v="xls - all" s=6,9
+10993 bi "insertCompositionText" "all" c1 v="xls - all" s=6,9
+10999 in "insertCompositionText" "all" c1 v="xls - all" s=9,9
+11004 ku "Unidentified" "" 229 v="xls - all" s=9,9
+11009 ce "all" v="xls - all" s=9,9
+11014 kd "Unidentified" "" 229 v="xls - all" s=9,9
+11019 bi "insertText" " " c0 v="xls - all" s=9,9
+11024 in "insertText" " " c0 v="xls - all " s=10,10
+11029 ku "Unidentified" "" 229 v="xls - all " s=10,10
+11043 tx " "
+13948 kd "Unidentified" "" 229 v="xls - all " s=10,10
+13974 bi "insertText" "x" c0 v="xls - all " s=10,10
+13993 in "insertText" "x" c0 v="xls - all x" s=11,11
+14004 ku "Unidentified" "" 229 v="xls - all x" s=11,11
+14026 tx "x"
+15907 cs "" v="xls - all x" s=11,11
+15935 cu "x" v="xls - all x" s=11,11
+15950 kd "Unidentified" "" 229 v="xls - all x" s=11,11
+15960 cu "x" v="xls - all x" s=10,11
+15968 bi "insertCompositionText" "x" c1 v="xls - all x" s=10,11
+15975 in "insertCompositionText" "x" c1 v="xls - all x" s=11,11
+15981 ku "Unidentified" "" 229 v="xls - all x" s=11,11
+15987 ce "x" v="xls - all x" s=11,11
+15992 kd "Unidentified" "" 229 v="xls - all x" s=11,11
+15997 bi "insertText" "." c0 v="xls - all x" s=11,11
+16003 in "insertText" "." c0 v="xls - all x." s=12,12
+16008 ku "Unidentified" "" 229 v="xls - all x." s=12,12
+16013 kd "Unidentified" "" 229 v="xls - all x." s=12,12
+16017 bi "insertText" " " c0 v="xls - all x." s=12,12
+16022 in "insertText" " " c0 v="xls - all x. " s=13,13
+16028 ku "Unidentified" "" 229 v="xls - all x. " s=13,13
+16050 tx ". "
+20265 kd "Unidentified" "" 229 v="xls - all x. " s=13,13
+20294 bi "deleteContentBackward" null c0 v="xls - all x. " s=12,13
+20307 in "deleteContentBackward" null c0 v="xls - all x." s=12,12
+20317 ku "Unidentified" "" 229 v="xls - all x." s=12,12
+20325 kd "Enter" "" 13 v="xls - all x." s=12,12
+20326 tx "\r"
+=A.S2 got="ls -  all x. " want="ls -all x." FAIL
+@A.S3 want="x."
+8 ku "Enter" "" 13 v="" s=0,0
+26 tx "\u007f"
+33 ~ v="x" s=1,1
+2988 kd "Unidentified" "" 229 v="x" s=1,1
+3038 bi "insertText" "x" c0 v="x" s=1,1
+3048 in "insertText" "x" c0 v="xx" s=2,2
+3056 ku "Unidentified" "" 229 v="xx" s=2,2
+3066 tx "x"
+3871 cs "" v="xx" s=2,2
+3894 cu "xx" v="xx" s=2,2
+3905 kd "Unidentified" "" 229 v="xx" s=2,2
+3913 cu "xx" v="xx" s=0,2
+3921 bi "insertCompositionText" "xx" c1 v="xx" s=0,2
+3927 in "insertCompositionText" "xx" c1 v="xx" s=2,2
+3932 ku "Unidentified" "" 229 v="xx" s=2,2
+3937 ce "xx" v="xx" s=2,2
+3943 kd "Unidentified" "" 229 v="xx" s=2,2
+3948 bi "insertText" "." c0 v="xx" s=2,2
+3953 in "insertText" "." c0 v="xx." s=3,3
+3959 ku "Unidentified" "" 229 v="xx." s=3,3
+3964 kd "Unidentified" "" 229 v="xx." s=3,3
+3969 bi "insertText" " " c0 v="xx." s=3,3
+3975 in "insertText" " " c0 v="xx. " s=4,4
+3980 ku "Unidentified" "" 229 v="xx. " s=4,4
+4006 tx ". "
+4679 kd "Unidentified" "" 229 v="xx. " s=4,4
+4718 bi "deleteContentBackward" null c0 v="xx. " s=3,4
+4741 in "deleteContentBackward" null c0 v="xx." s=3,3
+4753 ku "Unidentified" "" 229 v="xx." s=3,3
+4762 kd "Enter" "" 13 v="xx." s=3,3
+4764 tx "\r"
+=A.S3 got="x. " want="x." TRAIL
+@A.S4 want="echo hi  there"
+9 ku "Enter" "" 13 v="" s=0,0
+28 tx "\u007f"
+36 ~ v="x" s=1,1
+1830 kd "Unidentified" "" 229 v="x" s=1,1
+1860 bi "insertText" "e" c0 v="x" s=1,1
+1876 in "insertText" "e" c0 v="xe" s=2,2
+1886 ku "Unidentified" "" 229 v="xe" s=2,2
+1907 tx "e"
+2354 kd "Unidentified" "" 229 v="xe" s=2,2
+2392 bi "insertText" "c" c0 v="xe" s=2,2
+2405 in "insertText" "c" c0 v="xec" s=3,3
+2415 ku "Unidentified" "" 229 v="xec" s=3,3
+2436 tx "c"
+3049 kd "Unidentified" "" 229 v="xec" s=3,3
+3070 bi "insertText" "h" c0 v="xec" s=3,3
+3079 in "insertText" "h" c0 v="xech" s=4,4
+3087 ku "Unidentified" "" 229 v="xech" s=4,4
+3107 tx "h"
+3615 kd "Unidentified" "" 229 v="xech" s=4,4
+3652 bi "insertText" "o" c0 v="xech" s=4,4
+3667 in "insertText" "o" c0 v="xecho" s=5,5
+3677 ku "Unidentified" "" 229 v="xecho" s=5,5
+3700 tx "o"
+4028 cs "" v="xecho" s=5,5
+4066 cu "xecho" v="xecho" s=5,5
+4083 kd "Unidentified" "" 229 v="xecho" s=5,5
+4094 cu "xecho" v="xecho" s=0,5
+4103 bi "insertCompositionText" "xecho" c1 v="xecho" s=0,5
+4111 in "insertCompositionText" "xecho" c1 v="xecho" s=5,5
+4119 ku "Unidentified" "" 229 v="xecho" s=5,5
+4127 ce "xecho" v="xecho" s=5,5
+4135 kd "Unidentified" "" 229 v="xecho" s=5,5
+4144 bi "insertText" " " c0 v="xecho" s=5,5
+4154 in "insertText" " " c0 v="xecho " s=6,6
+4168 ku "Unidentified" "" 229 v="xecho " s=6,6
+4187 tx " "
+4476 kd "Unidentified" "" 229 v="xecho " s=6,6
+4505 bi "insertText" "h" c0 v="xecho " s=6,6
+4515 in "insertText" "h" c0 v="xecho h" s=7,7
+4523 ku "Unidentified" "" 229 v="xecho h" s=7,7
+4541 tx "h"
+4832 kd "Unidentified" "" 229 v="xecho h" s=7,7
+4849 bi "insertText" "i" c0 v="xecho h" s=7,7
+4859 in "insertText" "i" c0 v="xecho hi" s=8,8
+4866 ku "Unidentified" "" 229 v="xecho hi" s=8,8
+4887 tx "i"
+7584 cs "" v="xecho hi" s=8,8
+7610 cu "hi" v="xecho hi" s=8,8
+7624 kd "Unidentified" "" 229 v="xecho hi" s=8,8
+7635 cu "hi" v="xecho hi" s=6,8
+7644 bi "insertCompositionText" "hi" c1 v="xecho hi" s=6,8
+7653 in "insertCompositionText" "hi" c1 v="xecho hi" s=8,8
+7661 ku "Unidentified" "" 229 v="xecho hi" s=8,8
+7670 ce "hi" v="xecho hi" s=8,8
+7679 kd "Unidentified" "" 229 v="xecho hi" s=8,8
+7687 bi "insertText" " " c0 v="xecho hi" s=8,8
+7696 in "insertText" " " c0 v="xecho hi " s=9,9
+7706 ku "Unidentified" "" 229 v="xecho hi " s=9,9
+7735 tx " "
+9747 kd "Unidentified" "" 229 v="xecho hi " s=9,9
+9762 bi "insertText" " " c0 v="xecho hi " s=9,9
+9774 in "insertText" " " c0 v="xecho hi  " s=10,10
+9783 ku "Unidentified" "" 229 v="xecho hi  " s=10,10
+9805 tx " "
+11097 kd "Unidentified" "" 229 v="xecho hi  " s=10,10
+11121 bi "insertText" "t" c0 v="xecho hi  " s=10,10
+11134 in "insertText" "t" c0 v="xecho hi  t" s=11,11
+11144 ku "Unidentified" "" 229 v="xecho hi  t" s=11,11
+11169 tx "t"
+11386 kd "Unidentified" "" 229 v="xecho hi  t" s=11,11
+11411 bi "insertText" "h" c0 v="xecho hi  t" s=11,11
+11423 in "insertText" "h" c0 v="xecho hi  th" s=12,12
+11434 ku "Unidentified" "" 229 v="xecho hi  th" s=12,12
+11458 tx "h"
+11720 kd "Unidentified" "" 229 v="xecho hi  th" s=12,12
+11735 bi "insertText" "e" c0 v="xecho hi  th" s=12,12
+11745 in "insertText" "e" c0 v="xecho hi  the" s=13,13
+11755 ku "Unidentified" "" 229 v="xecho hi  the" s=13,13
+11776 tx "e"
+12002 kd "Unidentified" "" 229 v="xecho hi  the" s=13,13
+12031 bi "insertText" "r" c0 v="xecho hi  the" s=13,13
+12045 in "insertText" "r" c0 v="xecho hi  ther" s=14,14
+12055 ku "Unidentified" "" 229 v="xecho hi  ther" s=14,14
+12078 tx "r"
+12262 kd "Unidentified" "" 229 v="xecho hi  ther" s=14,14
+12279 bi "insertText" "e" c0 v="xecho hi  ther" s=14,14
+12287 in "insertText" "e" c0 v="xecho hi  there" s=15,15
+12295 ku "Unidentified" "" 229 v="xecho hi  there" s=15,15
+12317 tx "e"
+14909 kd "Enter" "" 13 v="xecho hi  there" s=15,15
+14923 tx "\r"
+=A.S4 got="echo hi  there" want="echo hi  there" PASS
+@A.S5 want="cd .."
+32 ku "Enter" "" 13 v="" s=0,0
+74 ~ v="x" s=1,1
+2515 kd "Unidentified" "" 229 v="x" s=1,1
+2562 bi "insertText" "c" c0 v="x" s=1,1
+2577 in "insertText" "c" c0 v="xc" s=2,2
+2589 ku "Unidentified" "" 229 v="xc" s=2,2
+2614 tx "c"
+3013 kd "Unidentified" "" 229 v="xc" s=2,2
+3066 bi "insertText" "d" c0 v="xc" s=2,2
+3086 in "insertText" "d" c0 v="xcd" s=3,3
+3098 ku "Unidentified" "" 229 v="xcd" s=3,3
+3124 tx "d"
+3696 cs "" v="xcd" s=3,3
+3728 cu "xcd" v="xcd" s=3,3
+3743 kd "Unidentified" "" 229 v="xcd" s=3,3
+3756 cu "xcd" v="xcd" s=0,3
+3766 bi "insertCompositionText" "xcd" c1 v="xcd" s=0,3
+3777 in "insertCompositionText" "xcd" c1 v="xcd" s=3,3
+3785 ku "Unidentified" "" 229 v="xcd" s=3,3
+3794 ce "xcd" v="xcd" s=3,3
+3807 kd "Unidentified" "" 229 v="xcd" s=3,3
+3818 bi "insertText" " " c0 v="xcd" s=3,3
+3830 in "insertText" " " c0 v="xcd " s=4,4
+3850 ku "Unidentified" "" 229 v="xcd " s=4,4
+3874 tx " "
+4560 kd "Unidentified" "" 229 v="xcd " s=4,4
+4595 bi "deleteContentBackward" null c0 v="xcd " s=3,4
+4611 in "deleteContentBackward" null c0 v="xcd" s=3,3
+4624 ku "Unidentified" "" 229 v="xcd" s=3,3
+4636 kd "Unidentified" "" 229 v="xcd" s=3,3
+4647 bi "insertText" "." c0 v="xcd" s=3,3
+4658 in "insertText" "." c0 v="xcd." s=4,4
+4666 ku "Unidentified" "" 229 v="xcd." s=4,4
+4675 kd "Unidentified" "" 229 v="xcd." s=4,4
+4684 bi "insertText" " " c0 v="xcd." s=4,4
+4693 in "insertText" " " c0 v="xcd. " s=5,5
+4702 ku "Unidentified" "" 229 v="xcd. " s=5,5
+4726 tx "xcd. "
+4727 tx ". "
+4727 tx " "
+5069 kd "Unidentified" "" 229 v="xcd. " s=5,5
+5119 bi "deleteContentBackward" null c0 v="xcd. " s=4,5
+5136 in "deleteContentBackward" null c0 v="xcd." s=4,4
+5149 ku "Unidentified" "" 229 v="xcd." s=4,4
+5158 kd "Unidentified" "" 229 v="xcd." s=4,4
+5167 bi "insertText" "." c0 v="xcd." s=4,4
+5176 in "insertText" "." c0 v="xcd.." s=5,5
+5185 ku "Unidentified" "" 229 v="xcd.." s=5,5
+5194 kd "Unidentified" "" 229 v="xcd.." s=5,5
+5203 bi "insertText" " " c0 v="xcd.." s=5,5
+5212 in "insertText" " " c0 v="xcd.. " s=6,6
+5221 ku "Unidentified" "" 229 v="xcd.. " s=6,6
+5244 tx "xcd.. "
+5245 tx ". "
+5245 tx " "
+8313 kd "Unidentified" "" 229 v="xcd.. " s=6,6
+8357 bi "deleteContentBackward" null c0 v="xcd.. " s=5,6
+8376 in "deleteContentBackward" null c0 v="xcd.." s=5,5
+8390 ku "Unidentified" "" 229 v="xcd.." s=5,5
+8403 kd "Enter" "" 13 v="xcd.." s=5,5
+8405 tx "\r"
+=A.S5 got="cd xcd. .  xcd.. .  " want="cd .." FAIL
+@A.S6 want="teh cat"
+11 ku "Enter" "" 13 v="" s=0,0
+41 tx "\u007f"
+51 ~ v="x" s=1,1
+1608 kd "Unidentified" "" 229 v="x" s=1,1
+1652 bi "insertText" "t" c0 v="x" s=1,1
+1669 in "insertText" "t" c0 v="xt" s=2,2
+1682 ku "Unidentified" "" 229 v="xt" s=2,2
+1711 tx "t"
+3041 kd "Unidentified" "" 229 v="xt" s=2,2
+3056 bi "insertText" "e" c0 v="xt" s=2,2
+3068 in "insertText" "e" c0 v="xte" s=3,3
+3078 ku "Unidentified" "" 229 v="xte" s=3,3
+3104 tx "e"
+3651 kd "Unidentified" "" 229 v="xte" s=3,3
+3696 bi "insertText" "h" c0 v="xte" s=3,3
+3711 in "insertText" "h" c0 v="xteh" s=4,4
+3725 ku "Unidentified" "" 229 v="xteh" s=4,4
+3754 tx "h"
+5197 cs "" v="xteh" s=4,4
+5234 cu "xteh" v="xteh" s=4,4
+5252 kd "Unidentified" "" 229 v="xteh" s=4,4
+5266 cu "xteh" v="xteh" s=0,4
+5279 bi "insertCompositionText" "xteh" c1 v="xteh" s=0,4
+5291 in "insertCompositionText" "xteh" c1 v="xteh" s=4,4
+5306 ku "Unidentified" "" 229 v="xteh" s=4,4
+5319 ce "xteh" v="xteh" s=4,4
+5333 kd "Unidentified" "" 229 v="xteh" s=4,4
+5350 bi "insertText" " " c0 v="xteh" s=4,4
+5362 in "insertText" " " c0 v="xteh " s=5,5
+5372 ku "Unidentified" "" 229 v="xteh " s=5,5
+5399 tx " "
+5616 kd "Unidentified" "" 229 v="xteh " s=5,5
+5641 bi "insertText" "c" c0 v="xteh " s=5,5
+5670 in "insertText" "c" c0 v="xteh c" s=6,6
+5682 ku "Unidentified" "" 229 v="xteh c" s=6,6
+5709 tx "c"
+5903 kd "Unidentified" "" 229 v="xteh c" s=6,6
+5936 bi "insertText" "a" c0 v="xteh c" s=6,6
+5953 in "insertText" "a" c0 v="xteh ca" s=7,7
+5970 ku "Unidentified" "" 229 v="xteh ca" s=7,7
+6005 tx "a"
+6146 kd "Unidentified" "" 229 v="xteh ca" s=7,7
+6165 bi "insertText" "t" c0 v="xteh ca" s=7,7
+6179 in "insertText" "t" c0 v="xteh cat" s=8,8
+6192 ku "Unidentified" "" 229 v="xteh cat" s=8,8
+6220 tx "t"
+7632 kd "Enter" "" 13 v="xteh cat" s=8,8
+7655 tx "\r"
+=A.S6 got="teh cat" want="teh cat" PASS
+!A strip=? caps=?
+7688 ku "Enter" "" 13 v="" s=0,0
+7730 ~ v="x" s=1,1
+#var B ta autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=- placeholder=-
+@B.S1 want="ls -all."
+7684 fo v="" s=0,0
+10434 kd "Unidentified" "" 229 v="" s=0,0
+10492 bi "insertText" "L" c0 v="" s=0,0
+10508 in "insertText" "L" c0 v="L" s=0,0
+10522 ku "Unidentified" "" 229 v="L" s=0,0
+10555 tx "L"
+19381 kd "Unidentified" "" 229 v="L" s=0,0
+19438 bi "insertText" "s" c0 v="L" s=0,0
+19457 in "insertText" "s" c0 v="sL" s=0,0
+19472 ku "Unidentified" "" 229 v="sL" s=0,0
+19505 tx "s"
+21149 cs "" v="sL" s=0,0
+21191 kd "Unidentified" "" 229 v="sL" s=0,0
+21209 bi "insertText" "LS" c0 v="sL" s=0,0
+21225 in "insertText" "LS" c0 v="LSsL" s=0,0
+21237 ku "Unidentified" "" 229 v="LSsL" s=0,0
+21248 kd "Unidentified" "" 229 v="LSsL" s=0,0
+21259 bi "insertText" " " c0 v="LSsL" s=0,0
+21271 in "insertText" " " c0 v=" LSsL" s=0,0
+21282 ku "Unidentified" "" 229 v=" LSsL" s=0,0
+22316 kd "Unidentified" "" 229 v=" LSsL" s=0,0
+22368 bi "insertText" "-" c0 v=" LSsL" s=0,0
+22387 in "insertText" "-" c0 v="- LSsL" s=0,0
+22402 ku "Unidentified" "" 229 v="- LSsL" s=0,0
+24364 kd "Unidentified" "" 229 v="- LSsL" s=0,0
+24398 bi "insertText" "A" c0 v="- LSsL" s=0,0
+24414 in "insertText" "A" c0 v="A- LSsL" s=0,0
+24428 ku "Unidentified" "" 229 v="A- LSsL" s=0,0
+24645 kd "Unidentified" "" 229 v="A- LSsL" s=0,0
+24679 bi "insertText" "l" c0 v="A- LSsL" s=0,0
+24697 in "insertText" "l" c0 v="lA- LSsL" s=0,0
+24712 ku "Unidentified" "" 229 v="lA- LSsL" s=0,0
+24821 kd "Unidentified" "" 229 v="lA- LSsL" s=0,0
+24849 bi "insertText" "l" c0 v="lA- LSsL" s=0,0
+24863 in "insertText" "l" c0 v="llA- LSsL" s=0,0
+24876 ku "Unidentified" "" 229 v="llA- LSsL" s=0,0
+25262 cs "" v="llA- LSsL" s=0,0
+25311 kd "Unidentified" "" 229 v="llA- LSsL" s=0,0
+25325 cs "" v="llA- LSsL" s=0,0
+25328 cu "All" v="llA- LSsL" s=0,0
+25339 bi "insertCompositionText" "All" c1 v="llA- LSsL" s=0,0
+25351 in "insertCompositionText" "All" c1 v="AllllA- LSsL" s=3,3
+25363 ku "Unidentified" "" 229 v="AllllA- LSsL" s=3,3
+25375 ce "All" v="AllllA- LSsL" s=3,3
+25388 kd "Unidentified" "" 229 v="AllllA- LSsL" s=3,3
+25401 bi "insertText" "." c0 v="AllllA- LSsL" s=3,3
+25416 in "insertText" "." c0 v="All.llA- LSsL" s=4,4
+25436 ku "Unidentified" "" 229 v="All.llA- LSsL" s=4,4
+25449 kd "Unidentified" "" 229 v="All.llA- LSsL" s=4,4
+25461 bi "insertText" " " c0 v="All.llA- LSsL" s=4,4
+25474 in "insertText" " " c0 v="All. llA- LSsL" s=5,5
+25486 ku "Unidentified" "" 229 v="All. llA- LSsL" s=5,5
+25517 tx " LSsL"
+26882 kd "Enter" "" 13 v="All. llA- LSsL" s=5,5
+26908 tx "\r"
+=B.S1 got="Ls LSsL" want="ls -all." FAIL
+@B.S2 want="ls -all x."
+23 ku "Enter" "" 13 v="" s=0,0
+2309 kd "Unidentified" "" 229 v="" s=0,0
+2351 bi "insertText" "L" c0 v="" s=0,0
+2371 in "insertText" "L" c0 v="L" s=1,1
+2386 ku "Unidentified" "" 229 v="L" s=1,1
+2421 tx "L"
+3077 kd "Unidentified" "" 229 v="L" s=1,1
+3118 bi "insertText" "s" c0 v="L" s=1,1
+3138 in "insertText" "s" c0 v="Ls" s=2,2
+3154 ku "Unidentified" "" 229 v="Ls" s=2,2
+3188 tx "s"
+4303 cs "" v="Ls" s=2,2
+4338 cu "Ls" v="Ls" s=2,2
+4356 kd "Unidentified" "" 229 v="Ls" s=2,2
+4371 cu "LS" v="Ls" s=0,2
+4384 bi "insertCompositionText" "LS" c1 v="Ls" s=0,2
+4401 in "insertCompositionText" "LS" c1 v="LS" s=2,2
+4405 ce "LS" v="LS" s=2,2
+4421 ku "Unidentified" "" 229 v="LS" s=2,2
+4441 kd "Unidentified" "" 229 v="LS" s=2,2
+4456 bi "insertText" " " c0 v="LS" s=2,2
+4469 in "insertText" " " c0 v="LS " s=3,3
+4481 ku "Unidentified" "" 229 v="LS " s=3,3
+4499 tx " "
+5549 kd "Unidentified" "" 229 v="LS " s=3,3
+5603 bi "insertText" "-" c0 v="LS " s=3,3
+5619 in "insertText" "-" c0 v="LS -" s=4,4
+5632 ku "Unidentified" "" 229 v="LS -" s=4,4
+5644 kd "Unidentified" "" 229 v="LS -" s=4,4
+5656 bi "insertText" " " c0 v="LS -" s=4,4
+5670 in "insertText" " " c0 v="LS - " s=5,5
+5682 ku "Unidentified" "" 229 v="LS - " s=5,5
+5715 tx "- "
+5716 tx " "
+6722 kd "Unidentified" "" 229 v="LS - " s=5,5
+6760 bi "insertText" "a" c0 v="LS - " s=5,5
+6775 in "insertText" "a" c0 v="LS - a" s=6,6
+6787 ku "Unidentified" "" 229 v="LS - a" s=6,6
+6820 tx "a"
+7035 kd "Unidentified" "" 229 v="LS - a" s=6,6
+7067 bi "insertText" "l" c0 v="LS - a" s=6,6
+7081 in "insertText" "l" c0 v="LS - al" s=7,7
+7094 ku "Unidentified" "" 229 v="LS - al" s=7,7
+7126 tx "l"
+7255 kd "Unidentified" "" 229 v="LS - al" s=7,7
+7278 bi "insertText" "l" c0 v="LS - al" s=7,7
+7291 in "insertText" "l" c0 v="LS - all" s=8,8
+7304 ku "Unidentified" "" 229 v="LS - all" s=8,8
+7337 tx "l"
+8745 cs "" v="LS - all" s=8,8
+8789 cu "all" v="LS - all" s=8,8
+8805 kd "Unidentified" "" 229 v="LS - all" s=8,8
+8819 cu "all" v="LS - all" s=5,8
+8834 bi "insertCompositionText" "all" c1 v="LS - all" s=5,8
+8853 in "insertCompositionText" "all" c1 v="LS - all" s=8,8
+8871 ku "Unidentified" "" 229 v="LS - all" s=8,8
+8893 ce "all" v="LS - all" s=8,8
+8909 kd "Unidentified" "" 229 v="LS - all" s=8,8
+8923 bi "insertText" " " c0 v="LS - all" s=8,8
+8937 in "insertText" " " c0 v="LS - all " s=9,9
+8951 ku "Unidentified" "" 229 v="LS - all " s=9,9
+8995 tx " "
+9198 kd "Unidentified" "" 229 v="LS - all " s=9,9
+9219 bi "insertText" "x" c0 v="LS - all " s=9,9
+9236 in "insertText" "x" c0 v="LS - all x" s=10,10
+9251 ku "Unidentified" "" 229 v="LS - all x" s=10,10
+9296 tx "x"
+10624 cs "" v="LS - all x" s=10,10
+10676 cu "x" v="LS - all x" s=10,10
+10694 kd "Unidentified" "" 229 v="LS - all x" s=10,10
+10711 cu "x" v="LS - all x" s=9,10
+10737 bi "insertCompositionText" "x" c1 v="LS - all x" s=9,10
+10752 in "insertCompositionText" "x" c1 v="LS - all x" s=10,10
+10766 ku "Unidentified" "" 229 v="LS - all x" s=10,10
+10780 ce "x" v="LS - all x" s=10,10
+10794 kd "Unidentified" "" 229 v="LS - all x" s=10,10
+10808 bi "insertText" "." c0 v="LS - all x" s=10,10
+10822 in "insertText" "." c0 v="LS - all x." s=11,11
+10837 ku "Unidentified" "" 229 v="LS - all x." s=11,11
+10851 kd "Unidentified" "" 229 v="LS - all x." s=11,11
+10869 bi "insertText" " " c0 v="LS - all x." s=11,11
+10884 in "insertText" " " c0 v="LS - all x. " s=12,12
+10899 ku "Unidentified" "" 229 v="LS - all x. " s=12,12
+10939 tx ". "
+11782 kd "Unidentified" "" 229 v="LS - all x. " s=12,12
+11833 bi "deleteContentBackward" null c0 v="LS - all x. " s=11,12
+11852 in "deleteContentBackward" null c0 v="LS - all x." s=11,11
+11866 ku "Unidentified" "" 229 v="LS - all x." s=11,11
+11880 kd "Enter" "" 13 v="LS - all x." s=11,11
+11883 tx "\r"
+=B.S2 got="Ls -  all x. " want="ls -all x." FAIL
+@B.S3 want="x."
+13 ku "Enter" "" 13 v="" s=0,0
+51 tx "\u007f"
+1975 kd "Unidentified" "" 229 v="" s=0,0
+2027 bi "insertText" "X" c0 v="" s=0,0
+2047 in "insertText" "X" c0 v="X" s=1,1
+2065 ku "Unidentified" "" 229 v="X" s=1,1
+2110 tx "X"
+2334 cs "" v="X" s=1,1
+2372 cu "X" v="X" s=1,1
+2387 kd "Unidentified" "" 229 v="X" s=1,1
+2402 cu "X" v="X" s=0,1
+2429 bi "insertCompositionText" "X" c1 v="X" s=0,1
+2449 in "insertCompositionText" "X" c1 v="X" s=1,1
+2476 ku "Unidentified" "" 229 v="X" s=1,1
+2493 ce "X" v="X" s=1,1
+2508 kd "Unidentified" "" 229 v="X" s=1,1
+2523 bi "insertText" "." c0 v="X" s=1,1
+2541 in "insertText" "." c0 v="X." s=2,2
+2562 ku "Unidentified" "" 229 v="X." s=2,2
+2584 kd "Unidentified" "" 229 v="X." s=2,2
+2600 bi "insertText" " " c0 v="X." s=2,2
+2617 in "insertText" " " c0 v="X. " s=3,3
+2632 ku "Unidentified" "" 229 v="X. " s=3,3
+2687 tx ". "
+2925 kd "Unidentified" "" 229 v="X. " s=3,3
+2957 bi "deleteContentBackward" null c0 v="X. " s=2,3
+2975 in "deleteContentBackward" null c0 v="X." s=2,2
+2996 ku "Unidentified" "" 229 v="X." s=2,2
+3021 kd "Enter" "" 13 v="X." s=2,2
+3025 tx "\r"
+=B.S3 got="X. " want="x." FAIL
+@B.S4 want="echo hi  there"
+15 ku "Enter" "" 13 v="" s=0,0
+54 tx "\u007f"
+1466 kd "Unidentified" "" 229 v="" s=0,0
+1504 bi "insertText" "E" c0 v="" s=0,0
+1520 in "insertText" "E" c0 v="E" s=1,1
+1535 ku "Unidentified" "" 229 v="E" s=1,1
+1583 tx "E"
+1834 kd "Unidentified" "" 229 v="E" s=1,1
+1872 bi "insertText" "c" c0 v="E" s=1,1
+1888 in "insertText" "c" c0 v="Ec" s=2,2
+1903 ku "Unidentified" "" 229 v="Ec" s=2,2
+1942 tx "c"
+2146 kd "Unidentified" "" 229 v="Ec" s=2,2
+2182 bi "insertText" "h" c0 v="Ec" s=2,2
+2199 in "insertText" "h" c0 v="Ech" s=3,3
+2215 ku "Unidentified" "" 229 v="Ech" s=3,3
+2262 tx "h"
+2477 kd "Unidentified" "" 229 v="Ech" s=3,3
+2512 bi "insertText" "o" c0 v="Ech" s=3,3
+2528 in "insertText" "o" c0 v="Echo" s=4,4
+2545 ku "Unidentified" "" 229 v="Echo" s=4,4
+2593 tx "o"
+3905 cs "" v="Echo" s=4,4
+3949 cu "Echo" v="Echo" s=4,4
+3966 kd "Unidentified" "" 229 v="Echo" s=4,4
+3985 cu "Echo" v="Echo" s=0,4
+4011 bi "insertCompositionText" "Echo" c1 v="Echo" s=0,4
+4029 in "insertCompositionText" "Echo" c1 v="Echo" s=4,4
+4045 ku "Unidentified" "" 229 v="Echo" s=4,4
+4060 ce "Echo" v="Echo" s=4,4
+4082 kd "Unidentified" "" 229 v="Echo" s=4,4
+4108 bi "insertText" " " c0 v="Echo" s=4,4
+4125 in "insertText" " " c0 v="Echo " s=5,5
+4141 ku "Unidentified" "" 229 v="Echo " s=5,5
+4182 tx " "
+4372 kd "Unidentified" "" 229 v="Echo " s=5,5
+4399 bi "insertText" "h" c0 v="Echo " s=5,5
+4416 in "insertText" "h" c0 v="Echo h" s=6,6
+4432 ku "Unidentified" "" 229 v="Echo h" s=6,6
+4471 tx "h"
+4687 kd "Unidentified" "" 229 v="Echo h" s=6,6
+4722 bi "insertText" "i" c0 v="Echo h" s=6,6
+4739 in "insertText" "i" c0 v="Echo hi" s=7,7
+4755 ku "Unidentified" "" 229 v="Echo hi" s=7,7
+4807 tx "i"
+5775 cs "" v="Echo hi" s=7,7
+5823 cu "hi" v="Echo hi" s=7,7
+5840 kd "Unidentified" "" 229 v="Echo hi" s=7,7
+5856 cu "hi" v="Echo hi" s=5,7
+5896 bi "insertCompositionText" "hi" c1 v="Echo hi" s=5,7
+5914 in "insertCompositionText" "hi" c1 v="Echo hi" s=7,7
+5930 ku "Unidentified" "" 229 v="Echo hi" s=7,7
+5947 ce "hi" v="Echo hi" s=7,7
+5964 kd "Unidentified" "" 229 v="Echo hi" s=7,7
+5994 bi "insertText" " " c0 v="Echo hi" s=7,7
+6012 in "insertText" " " c0 v="Echo hi " s=8,8
+6029 ku "Unidentified" "" 229 v="Echo hi " s=8,8
+6072 kd "Unidentified" "" 229 v="Echo hi " s=8,8
+6096 bi "deleteContentBackward" null c0 v="Echo hi " s=7,8
+6122 in "deleteContentBackward" null c0 v="Echo hi" s=7,7
+6139 ku "Unidentified" "" 229 v="Echo hi" s=7,7
+6156 kd "Unidentified" "" 229 v="Echo hi" s=7,7
+6174 bi "insertText" "." c0 v="Echo hi" s=7,7
+6191 in "insertText" "." c0 v="Echo hi." s=8,8
+6219 ku "Unidentified" "" 229 v="Echo hi." s=8,8
+6237 kd "Unidentified" "" 229 v="Echo hi." s=8,8
+6254 bi "insertText" " " c0 v="Echo hi." s=8,8
+6271 in "insertText" " " c0 v="Echo hi. " s=9,9
+6288 ku "Unidentified" "" 229 v="Echo hi. " s=9,9
+6322 tx ". "
+6576 kd "Unidentified" "" 229 v="Echo hi. " s=9,9
+6624 bi "insertText" "T" c0 v="Echo hi. " s=9,9
+6641 in "insertText" "T" c0 v="Echo hi. T" s=10,10
+6662 ku "Unidentified" "" 229 v="Echo hi. T" s=10,10
+6716 tx "T"
+6781 kd "Unidentified" "" 229 v="Echo hi. T" s=10,10
+6810 bi "insertText" "h" c0 v="Echo hi. T" s=10,10
+6827 in "insertText" "h" c0 v="Echo hi. Th" s=11,11
+6844 ku "Unidentified" "" 229 v="Echo hi. Th" s=11,11
+6866 tx "h"
+6998 kd "Unidentified" "" 229 v="Echo hi. Th" s=11,11
+7021 bi "insertText" "e" c0 v="Echo hi. Th" s=11,11
+7038 in "insertText" "e" c0 v="Echo hi. The" s=12,12
+7055 ku "Unidentified" "" 229 v="Echo hi. The" s=12,12
+7078 tx "e"
+7247 kd "Unidentified" "" 229 v="Echo hi. The" s=12,12
+7279 bi "insertText" "r" c0 v="Echo hi. The" s=12,12
+7301 in "insertText" "r" c0 v="Echo hi. Ther" s=13,13
+7318 ku "Unidentified" "" 229 v="Echo hi. Ther" s=13,13
+7339 tx "r"
+7463 kd "Unidentified" "" 229 v="Echo hi. Ther" s=13,13
+7486 bi "insertText" "e" c0 v="Echo hi. Ther" s=13,13
+7503 in "insertText" "e" c0 v="Echo hi. There" s=14,14
+7520 ku "Unidentified" "" 229 v="Echo hi. There" s=14,14
+7543 tx "e"
+9446 kd "Enter" "" 13 v="Echo hi. There" s=14,14
+9471 tx "\r"
+=B.S4 got="Echo hi. There" want="echo hi  there" FAIL
+@B.S5 want="cd .."
+37 ku "Enter" "" 13 v="" s=0,0
+2177 kd "Unidentified" "" 229 v="" s=0,0
+2243 bi "insertText" "C" c0 v="" s=0,0
+2267 in "insertText" "C" c0 v="C" s=1,1
+2289 ku "Unidentified" "" 229 v="C" s=1,1
+2339 tx "C"
+2549 kd "Unidentified" "" 229 v="C" s=1,1
+2590 bi "insertText" "d" c0 v="C" s=1,1
+2608 in "insertText" "d" c0 v="Cd" s=2,2
+2626 ku "Unidentified" "" 229 v="Cd" s=2,2
+2647 tx "d"
+4645 cs "" v="Cd" s=2,2
+4712 cu "Cd" v="Cd" s=2,2
+4737 kd "Unidentified" "" 229 v="Cd" s=2,2
+4773 cu "Cd" v="Cd" s=0,2
+4798 bi "insertCompositionText" "Cd" c1 v="Cd" s=0,2
+4822 in "insertCompositionText" "Cd" c1 v="Cd" s=2,2
+4849 ku "Unidentified" "" 229 v="Cd" s=2,2
+4885 ce "Cd" v="Cd" s=2,2
+4910 kd "Unidentified" "" 229 v="Cd" s=2,2
+4934 bi "insertText" " " c0 v="Cd" s=2,2
+4963 in "insertText" " " c0 v="Cd " s=3,3
+4998 ku "Unidentified" "" 229 v="Cd " s=3,3
+5053 tx " "
+5312 kd "Unidentified" "" 229 v="Cd " s=3,3
+5360 bi "deleteContentBackward" null c0 v="Cd " s=2,3
+5382 in "deleteContentBackward" null c0 v="Cd" s=2,2
+5401 ku "Unidentified" "" 229 v="Cd" s=2,2
+5420 kd "Unidentified" "" 229 v="Cd" s=2,2
+5438 bi "insertText" "." c0 v="Cd" s=2,2
+5457 in "insertText" "." c0 v="Cd." s=3,3
+5476 ku "Unidentified" "" 229 v="Cd." s=3,3
+5495 kd "Unidentified" "" 229 v="Cd." s=3,3
+5514 bi "insertText" " " c0 v="Cd." s=3,3
+5535 in "insertText" " " c0 v="Cd. " s=4,4
+5554 ku "Unidentified" "" 229 v="Cd. " s=4,4
+5600 kd "Unidentified" "" 229 v="Cd. " s=4,4
+5639 bi "deleteContentBackward" null c0 v="Cd. " s=3,4
+5659 in "deleteContentBackward" null c0 v="Cd." s=3,3
+5678 ku "Unidentified" "" 229 v="Cd." s=3,3
+5709 kd "Unidentified" "" 229 v="Cd." s=3,3
+5737 bi "insertText" "." c0 v="Cd." s=3,3
+5756 in "insertText" "." c0 v="Cd.." s=4,4
+5775 ku "Unidentified" "" 229 v="Cd.." s=4,4
+5796 kd "Unidentified" "" 229 v="Cd.." s=4,4
+5829 bi "insertText" " " c0 v="Cd.." s=4,4
+5850 in "insertText" " " c0 v="Cd.. " s=5,5
+5868 ku "Unidentified" "" 229 v="Cd.. " s=5,5
+5896 tx "Cd.. "
+5896 tx ".. "
+5897 tx ". "
+5899 tx "Cd.. "
+5900 tx ". "
+5901 tx " "
+7146 kd "Unidentified" "" 229 v="Cd.. " s=5,5
+7201 bi "deleteContentBackward" null c0 v="Cd.. " s=4,5
+7223 in "deleteContentBackward" null c0 v="Cd.." s=4,4
+7242 ku "Unidentified" "" 229 v="Cd.." s=4,4
+7262 kd "Enter" "" 13 v="Cd.." s=4,4
+7266 tx "\r"
+=B.S5 got="Cd Cd.. .. . Cd.. .  " want="cd .." FAIL
+@B.S6 want="teh cat"
+18 ku "Enter" "" 13 v="" s=0,0
+68 tx "\u007f"
+1546 kd "Unidentified" "" 229 v="" s=0,0
+1599 bi "insertText" "T" c0 v="" s=0,0
+1618 in "insertText" "T" c0 v="T" s=1,1
+1638 ku "Unidentified" "" 229 v="T" s=1,1
+1691 tx "T"
+1953 kd "Unidentified" "" 229 v="T" s=1,1
+1992 bi "insertText" "e" c0 v="T" s=1,1
+2013 in "insertText" "e" c0 v="Te" s=2,2
+2032 ku "Unidentified" "" 229 v="Te" s=2,2
+2080 tx "e"
+2237 kd "Unidentified" "" 229 v="Te" s=2,2
+2279 bi "insertText" "h" c0 v="Te" s=2,2
+2300 in "insertText" "h" c0 v="Teh" s=3,3
+2320 ku "Unidentified" "" 229 v="Teh" s=3,3
+2366 tx "h"
+2593 cs "" v="Teh" s=3,3
+2638 cu "Teh" v="Teh" s=3,3
+2658 kd "Unidentified" "" 229 v="Teh" s=3,3
+2677 cu "Teh" v="Teh" s=0,3
+2704 bi "insertCompositionText" "Teh" c1 v="Teh" s=0,3
+2741 in "insertCompositionText" "Teh" c1 v="Teh" s=3,3
+2763 ku "Unidentified" "" 229 v="Teh" s=3,3
+2783 ce "Teh" v="Teh" s=3,3
+2806 kd "Unidentified" "" 229 v="Teh" s=3,3
+2840 bi "insertText" " " c0 v="Teh" s=3,3
+2861 in "insertText" " " c0 v="Teh " s=4,4
+2881 ku "Unidentified" "" 229 v="Teh " s=4,4
+2948 tx " "
+3092 kd "Unidentified" "" 229 v="Teh " s=4,4
+3121 bi "insertText" "c" c0 v="Teh " s=4,4
+3145 in "insertText" "c" c0 v="Teh c" s=5,5
+3176 ku "Unidentified" "" 229 v="Teh c" s=5,5
+3202 tx "c"
+3315 kd "Unidentified" "" 229 v="Teh c" s=5,5
+3362 bi "insertText" "a" c0 v="Teh c" s=5,5
+3393 in "insertText" "a" c0 v="Teh ca" s=6,6
+3413 ku "Unidentified" "" 229 v="Teh ca" s=6,6
+3462 kd "Unidentified" "" 229 v="Teh ca" s=6,6
+3503 bi "insertText" "t" c0 v="Teh ca" s=6,6
+3525 in "insertText" "t" c0 v="Teh cat" s=7,7
+3545 ku "Unidentified" "" 229 v="Teh cat" s=7,7
+3572 tx "at"
+3572 tx "t"
+8926 kd "Enter" "" 13 v="Teh cat" s=7,7
+8960 tx "\r"
+=B.S6 got="Teh catt" want="teh cat" FAIL
+!B strip=? caps=?
+9005 ku "Enter" "" 13 v="" s=0,0
+#var A ta autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=- placeholder="x"
+@A.S1 want="ls -all."
+#var C ta autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=email placeholder=-
+@C.S1 want="ls -all."
+1547 fo v="" s=0,0
+2862 kd "Unidentified" "" 229 v="" s=0,0
+2936 bi "insertText" "l" c0 v="" s=0,0
+2971 in "insertText" "l" c0 v="l" s=0,0
+3003 ku "Unidentified" "" 229 v="l" s=0,0
+3055 tx "l"
+3065 kd "Unidentified" "" 229 v="l" s=0,0
+3084 bi "insertText" "s" c0 v="l" s=0,0
+3114 in "insertText" "s" c0 v="sl" s=0,0
+3148 ku "Unidentified" "" 229 v="sl" s=0,0
+3175 tx "s"
+4884 cs "" v="sl" s=0,0
+4944 kd "Unidentified" "" 229 v="sl" s=0,0
+4965 cs "" v="sl" s=0,0
+4969 cu "ls" v="sl" s=0,0
+4988 bi "insertCompositionText" "ls" c1 v="sl" s=0,0
+5013 in "insertCompositionText" "ls" c1 v="lssl" s=2,2
+5034 ku "Unidentified" "" 229 v="lssl" s=2,2
+5055 ce "ls" v="lssl" s=2,2
+5077 kd "Unidentified" "" 229 v="lssl" s=2,2
+5100 bi "insertText" " " c0 v="lssl" s=2,2
+5123 in "insertText" " " c0 v="ls sl" s=3,3
+5146 ku "Unidentified" "" 229 v="ls sl" s=3,3
+5204 tx " sl"
+6338 kd "Unidentified" "" 229 v="ls sl" s=3,3
+6388 bi "insertText" "-" c0 v="ls sl" s=3,3
+6412 in "insertText" "-" c0 v="ls -sl" s=4,4
+6438 ku "Unidentified" "" 229 v="ls -sl" s=4,4
+6494 tx "ls -sl"
+7234 kd "Unidentified" "" 229 v="ls -sl" s=4,4
+7309 bi "insertText" "a" c0 v="ls -sl" s=4,4
+7333 in "insertText" "a" c0 v="ls -asl" s=5,5
+7359 ku "Unidentified" "" 229 v="ls -asl" s=5,5
+7417 tx "ls -asl"
+7508 kd "Unidentified" "" 229 v="ls -asl" s=5,5
+7530 bi "insertText" "l" c0 v="ls -asl" s=5,5
+7551 in "insertText" "l" c0 v="ls -alsl" s=6,6
+7572 ku "Unidentified" "" 229 v="ls -alsl" s=6,6
+7625 tx "ls -alsl"
+7701 kd "Unidentified" "" 229 v="ls -alsl" s=6,6
+7743 bi "insertText" "l" c0 v="ls -alsl" s=6,6
+7765 in "insertText" "l" c0 v="ls -allsl" s=7,7
+7787 ku "Unidentified" "" 229 v="ls -allsl" s=7,7
+7839 tx "ls -allsl"
+10306 cs "" v="ls -allsl" s=7,7
+10382 cu "all" v="ls -allsl" s=7,7
+10412 kd "Unidentified" "" 229 v="ls -allsl" s=7,7
+10440 cu "all" v="ls -allsl" s=4,7
+10468 bi "insertCompositionText" "all" c1 v="ls -allsl" s=4,7
+10497 in "insertCompositionText" "all" c1 v="ls -allsl" s=7,7
+10524 ku "Unidentified" "" 229 v="ls -allsl" s=7,7
+10554 ce "all" v="ls -allsl" s=7,7
+10581 kd "Unidentified" "" 229 v="ls -allsl" s=7,7
+10618 bi "insertText" "." c0 v="ls -allsl" s=7,7
+10663 in "insertText" "." c0 v="ls -all.sl" s=8,8
+10695 ku "Unidentified" "" 229 v="ls -all.sl" s=8,8
+10757 tx "l"
+19906 kd "Enter" "" 13 v="ls -all.sl" s=8,8
+19934 tx "\r"
+=C.S1 got="ls slls -slls -aslls -alslls -allsll" want="ls -all." FAIL
+@C.S2 want="ls -all x."
+27 ku "Enter" "" 13 v="" s=0,0
+1687 kd "Unidentified" "" 229 v="" s=0,0
+1759 bi "insertText" "l" c0 v="" s=0,0
+1790 in "insertText" "l" c0 v="l" s=1,1
+1812 ku "Unidentified" "" 229 v="l" s=1,1
+1865 tx "l"
+2024 kd "Unidentified" "" 229 v="l" s=1,1
+2051 bi "insertText" "s" c0 v="l" s=1,1
+2074 in "insertText" "s" c0 v="ls" s=2,2
+2096 ku "Unidentified" "" 229 v="ls" s=2,2
+2123 tx "s"
+3531 cs "" v="ls" s=2,2
+3590 cu "ls" v="ls" s=2,2
+3613 kd "Unidentified" "" 229 v="ls" s=2,2
+3635 cu "ls" v="ls" s=0,2
+3658 bi "insertCompositionText" "ls" c1 v="ls" s=0,2
+3685 in "insertCompositionText" "ls" c1 v="ls" s=2,2
+3724 ku "Unidentified" "" 229 v="ls" s=2,2
+3749 ce "ls" v="ls" s=2,2
+3772 kd "Unidentified" "" 229 v="ls" s=2,2
+3795 bi "insertText" " " c0 v="ls" s=2,2
+3820 in "insertText" " " c0 v="ls " s=3,3
+3844 ku "Unidentified" "" 229 v="ls " s=3,3
+3903 tx " "
+4769 kd "Unidentified" "" 229 v="ls " s=3,3
+4821 bi "insertText" "-" c0 v="ls " s=3,3
+4844 in "insertText" "-" c0 v="ls -" s=4,4
+4866 ku "Unidentified" "" 229 v="ls -" s=4,4
+4920 tx "-"
+7935 kd "Unidentified" "" 229 v="ls -" s=4,4
+7985 bi "insertText" "a" c0 v="ls -" s=4,4
+8015 in "insertText" "a" c0 v="ls -a" s=5,5
+8044 ku "Unidentified" "" 229 v="ls -a" s=5,5
+8108 tx "a"
+9465 kd "Unidentified" "" 229 v="ls -a" s=5,5
+9498 bi "insertText" "l" c0 v="ls -a" s=5,5
+9522 in "insertText" "l" c0 v="ls -al" s=6,6
+9545 ku "Unidentified" "" 229 v="ls -al" s=6,6
+9603 tx "l"
+9708 kd "Unidentified" "" 229 v="ls -al" s=6,6
+9738 bi "insertText" "l" c0 v="ls -al" s=6,6
+9762 in "insertText" "l" c0 v="ls -all" s=7,7
+9785 ku "Unidentified" "" 229 v="ls -all" s=7,7
+9814 tx "l"
+10946 cs "" v="ls -all" s=7,7
+11010 cu "all" v="ls -all" s=7,7
+11033 kd "Unidentified" "" 229 v="ls -all" s=7,7
+11057 cu "all" v="ls -all" s=4,7
+11079 bi "insertCompositionText" "all" c1 v="ls -all" s=4,7
+11102 in "insertCompositionText" "all" c1 v="ls -all" s=7,7
+11124 ku "Unidentified" "" 229 v="ls -all" s=7,7
+11147 ce "all" v="ls -all" s=7,7
+11170 kd "Unidentified" "" 229 v="ls -all" s=7,7
+11193 bi "insertText" " " c0 v="ls -all" s=7,7
+11217 in "insertText" " " c0 v="ls -all " s=8,8
+11243 ku "Unidentified" "" 229 v="ls -all " s=8,8
+11319 tx " "
+11556 kd "Unidentified" "" 229 v="ls -all " s=8,8
+11607 bi "insertText" "x" c0 v="ls -all " s=8,8
+11631 in "insertText" "x" c0 v="ls -all x" s=9,9
+11653 ku "Unidentified" "" 229 v="ls -all x" s=9,9
+11709 tx "x"
+12903 cs "" v="ls -all x" s=9,9
+12951 cu "x" v="ls -all x" s=9,9
+12976 kd "Unidentified" "" 229 v="ls -all x" s=9,9
+13000 cu "x" v="ls -all x" s=8,9
+13023 bi "insertCompositionText" "x" c1 v="ls -all x" s=8,9
+13047 in "insertCompositionText" "x" c1 v="ls -all x" s=9,9
+13073 ku "Unidentified" "" 229 v="ls -all x" s=9,9
+13098 ce "x" v="ls -all x" s=9,9
+13124 kd "Unidentified" "" 229 v="ls -all x" s=9,9
+13148 bi "insertText" "." c0 v="ls -all x" s=9,9
+13172 in "insertText" "." c0 v="ls -all x." s=10,10
+13196 ku "Unidentified" "" 229 v="ls -all x." s=10,10
+13254 tx "."
+15028 kd "Enter" "" 13 v="ls -all x." s=10,10
+15063 tx "\r"
+=C.S2 got="ls -all x." want="ls -all x." PASS
+@C.S3 want="x."
+51 ku "Enter" "" 13 v="" s=0,0
+1638 kd "Unidentified" "" 229 v="" s=0,0
+1720 bi "insertText" "x" c0 v="" s=0,0
+1753 in "insertText" "x" c0 v="x" s=1,1
+1777 ku "Unidentified" "" 229 v="x" s=1,1
+1835 tx "x"
+2210 cs "" v="x" s=1,1
+2254 cu "x" v="x" s=1,1
+2279 kd "Unidentified" "" 229 v="x" s=1,1
+2303 cu "x" v="x" s=0,1
+2327 bi "insertCompositionText" "x" c1 v="x" s=0,1
+2351 in "insertCompositionText" "x" c1 v="x" s=1,1
+2377 ku "Unidentified" "" 229 v="x" s=1,1
+2401 ce "x" v="x" s=1,1
+2425 kd "Unidentified" "" 229 v="x" s=1,1
+2449 bi "insertText" "." c0 v="x" s=1,1
+2473 in "insertText" "." c0 v="x." s=2,2
+2497 ku "Unidentified" "" 229 v="x." s=2,2
+2558 tx "."
+2842 kd "Enter" "" 13 v="x." s=2,2
+2864 tx "\r"
+=C.S3 got="x." want="x." PASS
+@C.S4 want="echo hi  there"
+28 ku "Enter" "" 13 v="" s=0,0
+1377 kd "Unidentified" "" 229 v="" s=0,0
+1437 bi "insertText" "e" c0 v="" s=0,0
+1462 in "insertText" "e" c0 v="e" s=1,1
+1487 ku "Unidentified" "" 229 v="e" s=1,1
+1546 tx "e"
+1729 kd "Unidentified" "" 229 v="e" s=1,1
+1762 bi "insertText" "c" c0 v="e" s=1,1
+1787 in "insertText" "c" c0 v="ec" s=2,2
+1812 ku "Unidentified" "" 229 v="ec" s=2,2
+1844 tx "c"
+1994 kd "Unidentified" "" 229 v="ec" s=2,2
+2042 bi "insertText" "h" c0 v="ec" s=2,2
+2068 in "insertText" "h" c0 v="ech" s=3,3
+2093 ku "Unidentified" "" 229 v="ech" s=3,3
+2153 tx "h"
+2326 kd "Unidentified" "" 229 v="ech" s=3,3
+2359 bi "insertText" "o" c0 v="ech" s=3,3
+2384 in "insertText" "o" c0 v="echo" s=4,4
+2414 ku "Unidentified" "" 229 v="echo" s=4,4
+2448 tx "o"
+3267 cs "" v="echo" s=4,4
+3325 cu "echo" v="echo" s=4,4
+3351 kd "Unidentified" "" 229 v="echo" s=4,4
+3376 cu "echo" v="echo" s=0,4
+3401 bi "insertCompositionText" "echo" c1 v="echo" s=0,4
+3425 in "insertCompositionText" "echo" c1 v="echo" s=4,4
+3451 ku "Unidentified" "" 229 v="echo" s=4,4
+3480 ce "echo" v="echo" s=4,4
+3505 kd "Unidentified" "" 229 v="echo" s=4,4
+3530 bi "insertText" " " c0 v="echo" s=4,4
+3557 in "insertText" " " c0 v="echo " s=5,5
+3582 ku "Unidentified" "" 229 v="echo " s=5,5
+3667 kd "Unidentified" "" 229 v="echo " s=5,5
+3701 bi "insertText" "h" c0 v="echo " s=5,5
+3727 in "insertText" "h" c0 v="echo h" s=6,6
+3753 ku "Unidentified" "" 229 v="echo h" s=6,6
+3784 tx " h"
+3940 kd "Unidentified" "" 229 v="echo h" s=6,6
+3971 bi "insertText" "i" c0 v="echo h" s=6,6
+3997 in "insertText" "i" c0 v="echo hi" s=7,7
+4022 ku "Unidentified" "" 229 v="echo hi" s=7,7
+4054 tx "i"
+4802 cs "" v="echo hi" s=7,7
+4865 cu "hi" v="echo hi" s=7,7
+4891 kd "Unidentified" "" 229 v="echo hi" s=7,7
+4918 cu "hi" v="echo hi" s=5,7
+4944 bi "insertCompositionText" "hi" c1 v="echo hi" s=5,7
+4970 in "insertCompositionText" "hi" c1 v="echo hi" s=7,7
+4995 ku "Unidentified" "" 229 v="echo hi" s=7,7
+5021 ce "hi" v="echo hi" s=7,7
+5046 kd "Unidentified" "" 229 v="echo hi" s=7,7
+5076 bi "insertText" " " c0 v="echo hi" s=7,7
+5123 in "insertText" " " c0 v="echo hi " s=8,8
+5156 ku "Unidentified" "" 229 v="echo hi " s=8,8
+5221 kd "Unidentified" "" 229 v="echo hi " s=8,8
+5253 bi "deleteContentBackward" null c0 v="echo hi " s=7,8
+5280 in "deleteContentBackward" null c0 v="echo hi" s=7,7
+5306 ku "Unidentified" "" 229 v="echo hi" s=7,7
+5332 kd "Unidentified" "" 229 v="echo hi" s=7,7
+5359 bi "insertText" "." c0 v="echo hi" s=7,7
+5385 in "insertText" "." c0 v="echo hi." s=8,8
+5411 ku "Unidentified" "" 229 v="echo hi." s=8,8
+5448 tx "."
+6383 kd "Unidentified" "" 229 v="echo hi." s=8,8
+6435 bi "insertText" "t" c0 v="echo hi." s=8,8
+6461 in "insertText" "t" c0 v="echo hi.t" s=9,9
+6487 ku "Unidentified" "" 229 v="echo hi.t" s=9,9
+6553 tx "t"
+6645 kd "Unidentified" "" 229 v="echo hi.t" s=9,9
+6696 bi "insertText" "h" c0 v="echo hi.t" s=9,9
+6723 in "insertText" "h" c0 v="echo hi.th" s=10,10
+6752 ku "Unidentified" "" 229 v="echo hi.th" s=10,10
+6821 tx "h"
+6841 kd "Unidentified" "" 229 v="echo hi.th" s=10,10
+6884 bi "insertText" "e" c0 v="echo hi.th" s=10,10
+6913 in "insertText" "e" c0 v="echo hi.the" s=11,11
+6941 ku "Unidentified" "" 229 v="echo hi.the" s=11,11
+6973 tx "e"
+7114 kd "Unidentified" "" 229 v="echo hi.the" s=11,11
+7165 bi "insertText" "r" c0 v="echo hi.the" s=11,11
+7192 in "insertText" "r" c0 v="echo hi.ther" s=12,12
+7218 ku "Unidentified" "" 229 v="echo hi.ther" s=12,12
+7285 tx "r"
+7392 kd "Unidentified" "" 229 v="echo hi.ther" s=12,12
+7439 bi "insertText" "e" c0 v="echo hi.ther" s=12,12
+7465 in "insertText" "e" c0 v="echo hi.there" s=13,13
+7491 ku "Unidentified" "" 229 v="echo hi.there" s=13,13
+7559 tx "e"
+10053 kd "Enter" "" 13 v="echo hi.there" s=13,13
+10084 tx "\r"
+=C.S4 got="echo hi.there" want="echo hi  there" FAIL
+@C.S5 want="cd .."
+36 ku "Enter" "" 13 v="" s=0,0
+1706 kd "Unidentified" "" 229 v="" s=0,0
+1769 bi "insertText" "c" c0 v="" s=0,0
+1798 in "insertText" "c" c0 v="c" s=1,1
+1824 ku "Unidentified" "" 229 v="c" s=1,1
+1890 tx "c"
+1992 kd "Unidentified" "" 229 v="c" s=1,1
+2032 bi "insertText" "d" c0 v="c" s=1,1
+2060 in "insertText" "d" c0 v="cd" s=2,2
+2086 ku "Unidentified" "" 229 v="cd" s=2,2
+2155 tx "d"
+2319 cs "" v="cd" s=2,2
+2353 cu "cd" v="cd" s=2,2
+2382 kd "Unidentified" "" 229 v="cd" s=2,2
+2409 cu "cd" v="cd" s=0,2
+2437 bi "insertCompositionText" "cd" c1 v="cd" s=0,2
+2463 in "insertCompositionText" "cd" c1 v="cd" s=2,2
+2490 ku "Unidentified" "" 229 v="cd" s=2,2
+2517 ce "cd" v="cd" s=2,2
+2547 kd "Unidentified" "" 229 v="cd" s=2,2
+2594 bi "insertText" " " c0 v="cd" s=2,2
+2623 in "insertText" " " c0 v="cd " s=3,3
+2651 ku "Unidentified" "" 229 v="cd " s=3,3
+2686 tx " "
+3076 kd "Unidentified" "" 229 v="cd " s=3,3
+3132 bi "insertText" "." c0 v="cd " s=3,3
+3159 in "insertText" "." c0 v="cd ." s=4,4
+3186 ku "Unidentified" "" 229 v="cd ." s=4,4
+3254 tx "."
+3346 kd "Unidentified" "" 229 v="cd ." s=4,4
+3407 bi "insertText" "." c0 v="cd ." s=4,4
+3436 in "insertText" "." c0 v="cd .." s=5,5
+3463 ku "Unidentified" "" 229 v="cd .." s=5,5
+3497 tx "."
+4891 kd "Enter" "" 13 v="cd .." s=5,5
+4919 tx "\r"
+=C.S5 got="cd .." want="cd .." PASS
+@C.S6 want="teh cat"
+28 ku "Enter" "" 13 v="" s=0,0
+1659 kd "Unidentified" "" 229 v="" s=0,0
+1729 bi "insertText" "t" c0 v="" s=0,0
+1760 in "insertText" "t" c0 v="t" s=1,1
+1788 ku "Unidentified" "" 229 v="t" s=1,1
+1864 tx "t"
+1991 kd "Unidentified" "" 229 v="t" s=1,1
+2035 bi "insertText" "e" c0 v="t" s=1,1
+2063 in "insertText" "e" c0 v="te" s=2,2
+2091 ku "Unidentified" "" 229 v="te" s=2,2
+2160 tx "e"
+2200 kd "Unidentified" "" 229 v="te" s=2,2
+2229 bi "insertText" "h" c0 v="te" s=2,2
+2258 in "insertText" "h" c0 v="teh" s=3,3
+2286 ku "Unidentified" "" 229 v="teh" s=3,3
+2320 tx "h"
+2882 cs "" v="teh" s=3,3
+2934 cu "teh" v="teh" s=3,3
+2962 kd "Unidentified" "" 229 v="teh" s=3,3
+2992 cu "teh" v="teh" s=0,3
+3020 bi "insertCompositionText" "teh" c1 v="teh" s=0,3
+3048 in "insertCompositionText" "teh" c1 v="teh" s=3,3
+3104 ku "Unidentified" "" 229 v="teh" s=3,3
+3135 ce "teh" v="teh" s=3,3
+3164 kd "Unidentified" "" 229 v="teh" s=3,3
+3193 bi "insertText" " " c0 v="teh" s=3,3
+3223 in "insertText" " " c0 v="teh " s=4,4
+3252 ku "Unidentified" "" 229 v="teh " s=4,4
+3324 kd "Unidentified" "" 229 v="teh " s=4,4
+3358 bi "insertText" "c" c0 v="teh " s=4,4
+3387 in "insertText" "c" c0 v="teh c" s=5,5
+3416 ku "Unidentified" "" 229 v="teh c" s=5,5
+3451 tx " c"
+3495 kd "Unidentified" "" 229 v="teh c" s=5,5
+3529 bi "insertText" "a" c0 v="teh c" s=5,5
+3559 in "insertText" "a" c0 v="teh ca" s=6,6
+3586 ku "Unidentified" "" 229 v="teh ca" s=6,6
+3625 tx "a"
+3772 kd "Unidentified" "" 229 v="teh ca" s=6,6
+3802 bi "insertText" "t" c0 v="teh ca" s=6,6
+3830 in "insertText" "t" c0 v="teh cat" s=7,7
+3858 ku "Unidentified" "" 229 v="teh cat" s=7,7
+3928 tx "t"
+5725 kd "Enter" "" 13 v="teh cat" s=7,7
+5739 tx "\r"
+=C.S6 got="teh cat" want="teh cat" PASS
+!C strip=? caps=?
+5770 ku "Enter" "" 13 v="" s=0,0
+#var D ta autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=url placeholder=-
+@D.S1 want="ls -all."
+2412 fo v="" s=0,0
+2560 cs "" v="" s=0,0
+2598 cu "" v="" s=0,0
+2685 cs "" v="" s=0,0
+2735 cu "" v="" s=0,0
+2807 cs "" v="" s=0,0
+2852 cu "" v="" s=0,0
+2934 cs "" v="" s=0,0
+2980 cu "" v="" s=0,0
+3035 cs "" v="" s=0,0
+3069 cu "" v="" s=0,0
+4446 kd "Unidentified" "" 229 v="" s=0,0
+4499 cs "" v="" s=0,0
+4504 cu "l" v="" s=0,0
+4545 bi "insertCompositionText" "l" c1 v="" s=0,0
+4576 in "insertCompositionText" "l" c1 v="l" s=1,1
+4615 ku "Unidentified" "" 229 v="l" s=1,1
+4725 kd "Unidentified" "" 229 v="l" s=1,1
+4762 cu "ls" v="l" s=0,1
+4802 bi "insertCompositionText" "ls" c1 v="l" s=0,1
+4851 in "insertCompositionText" "ls" c1 v="ls" s=2,2
+4884 ku "Unidentified" "" 229 v="ls" s=2,2
+5111 ce "ls" v="ls" s=2,2
+5161 kd "Unidentified" "" 229 v="ls" s=2,2
+5191 bi "insertText" " " c0 v="ls" s=2,2
+5235 in "insertText" " " c0 v="ls " s=3,3
+5269 ku "Unidentified" "" 229 v="ls " s=3,3
+5363 cs "" v="ls " s=3,3
+5399 cu "" v="ls " s=3,3
+5437 tx "ls "
+5826 cs "" v="ls " s=3,3
+5885 cu "" v="ls " s=3,3
+6980 kd "Unidentified" "" 229 v="ls " s=3,3
+7031 bi "insertText" "-" c0 v="ls " s=3,3
+7066 in "insertText" "-" c0 v="ls -" s=4,4
+7115 ku "Unidentified" "" 229 v="ls -" s=4,4
+7147 cs "" v="ls -" s=4,4
+7183 cu "" v="ls -" s=4,4
+7232 kd "Unidentified" "" 229 v="ls -" s=4,4
+7264 bi "insertText" " " c0 v="ls -" s=4,4
+7295 in "insertText" " " c0 v="ls - " s=5,5
+7326 ku "Unidentified" "" 229 v="ls - " s=5,5
+7407 cs "" v="ls - " s=5,5
+7469 cu "" v="ls - " s=5,5
+7944 cs "" v="ls - " s=5,5
+7993 cu "" v="ls - " s=5,5
+9205 kd "Unidentified" "" 229 v="ls - " s=5,5
+9254 cs "" v="ls - " s=5,5
+9260 cu "a" v="ls - " s=5,5
+9288 bi "insertCompositionText" "a" c1 v="ls - " s=5,5
+9318 in "insertCompositionText" "a" c1 v="ls - a" s=6,6
+9348 ku "Unidentified" "" 229 v="ls - a" s=6,6
+9546 kd "Unidentified" "" 229 v="ls - a" s=6,6
+9593 cu "al" v="ls - a" s=5,6
+9623 bi "insertCompositionText" "al" c1 v="ls - a" s=5,6
+9662 in "insertCompositionText" "al" c1 v="ls - al" s=7,7
+9700 ku "Unidentified" "" 229 v="ls - al" s=7,7
+9737 kd "Unidentified" "" 229 v="ls - al" s=7,7
+9783 cu "all" v="ls - al" s=5,7
+9816 bi "insertCompositionText" "all" c1 v="ls - al" s=5,7
+9846 in "insertCompositionText" "all" c1 v="ls - all" s=8,8
+9892 ku "Unidentified" "" 229 v="ls - all" s=8,8
+9968 cu "all" v="ls - all" s=8,8
+13849 ce "all" v="ls - all" s=8,8
+13981 kd "Unidentified" "" 229 v="ls - all" s=8,8
+14031 bi "insertText" "." c0 v="ls - all" s=8,8
+14085 in "insertText" "." c0 v="ls - all." s=9,9
+14125 ku "Unidentified" "" 229 v="ls - all." s=9,9
+14179 cs "" v="ls - all." s=9,9
+14220 cu "all." v="ls - all." s=9,9
+14275 tx "all."
+16402 ce "all." v="ls - all." s=9,9
+16462 kd "Enter" "" 13 v="ls - all." s=9,9
+16469 tx ""
+16469 tx "\r"
+=D.S1 got="ls all." want="ls -all." FAIL
+@D.S2 want="ls -all x."
+47 ku "Enter" "" 13 v="" s=0,0
+158 cs "" v="" s=0,0
+197 cu "" v="" s=0,0
+271 cs "" v="" s=0,0
+313 cu "" v="" s=0,0
+3573 kd "Unidentified" "" 229 v="" s=0,0
+3657 cs "" v="" s=0,0
+3664 cu "l" v="" s=0,0
+3707 bi "insertCompositionText" "l" c1 v="" s=0,0
+3763 in "insertCompositionText" "l" c1 v="l" s=1,1
+3804 ku "Unidentified" "" 229 v="l" s=1,1
+3931 kd "Unidentified" "" 229 v="l" s=1,1
+3969 cu "ls" v="l" s=0,1
+4005 bi "insertCompositionText" "ls" c1 v="l" s=0,1
+4044 in "insertCompositionText" "ls" c1 v="ls" s=2,2
+4083 ku "Unidentified" "" 229 v="ls" s=2,2
+7973 ce "ls" v="ls" s=2,2
+8034 kd "Unidentified" "" 229 v="ls" s=2,2
+8080 bi "insertText" " " c0 v="ls" s=2,2
+8138 in "insertText" " " c0 v="ls " s=3,3
+8178 ku "Unidentified" "" 229 v="ls " s=3,3
+8236 cs "" v="ls " s=3,3
+8275 cu "" v="ls " s=3,3
+8312 tx "ls "
+8703 cs "" v="ls " s=3,3
+8761 cu "" v="ls " s=3,3
+9672 kd "Unidentified" "" 229 v="ls " s=3,3
+9742 bi "insertText" "-" c0 v="ls " s=3,3
+9774 in "insertText" "-" c0 v="ls -" s=4,4
+9805 ku "Unidentified" "" 229 v="ls -" s=4,4
+9837 cs "" v="ls -" s=4,4
+9875 cu "" v="ls -" s=4,4
+9908 kd "Unidentified" "" 229 v="ls -" s=4,4
+9941 bi "insertText" " " c0 v="ls -" s=4,4
+9975 in "insertText" " " c0 v="ls - " s=5,5
+10027 ku "Unidentified" "" 229 v="ls - " s=5,5
+10118 cs "" v="ls - " s=5,5
+10166 cu "" v="ls - " s=5,5
+10273 cs "" v="ls - " s=5,5
+10319 cu "" v="ls - " s=5,5
+10705 kd "Unidentified" "" 229 v="ls - " s=5,5
+10779 cs "" v="ls - " s=5,5
+10786 cu "a" v="ls - " s=5,5
+10819 bi "insertCompositionText" "a" c1 v="ls - " s=5,5
+10850 in "insertCompositionText" "a" c1 v="ls - a" s=6,6
+10883 ku "Unidentified" "" 229 v="ls - a" s=6,6
+11261 kd "Unidentified" "" 229 v="ls - a" s=6,6
+11319 cu "al" v="ls - a" s=5,6
+11353 bi "insertCompositionText" "al" c1 v="ls - a" s=5,6
+11404 in "insertCompositionText" "al" c1 v="ls - al" s=7,7
+11438 ku "Unidentified" "" 229 v="ls - al" s=7,7
+11539 kd "Unidentified" "" 229 v="ls - al" s=7,7
+11580 cu "all" v="ls - al" s=5,7
+11612 bi "insertCompositionText" "all" c1 v="ls - al" s=5,7
+11659 in "insertCompositionText" "all" c1 v="ls - all" s=8,8
+11693 ku "Unidentified" "" 229 v="ls - all" s=8,8
+11732 cu "all" v="ls - all" s=8,8
+12424 ce "all" v="ls - all" s=8,8
+12505 kd "Unidentified" "" 229 v="ls - all" s=8,8
+12539 bi "insertText" " " c0 v="ls - all" s=8,8
+12591 in "insertText" " " c0 v="ls - all " s=9,9
+12625 ku "Unidentified" "" 229 v="ls - all " s=9,9
+12706 cs "" v="ls - all " s=9,9
+12762 cu "" v="ls - all " s=9,9
+12797 tx "all "
+13060 kd "Unidentified" "" 229 v="ls - all " s=9,9
+13112 cs "" v="ls - all " s=9,9
+13119 cu "x" v="ls - all " s=9,9
+13149 bi "insertCompositionText" "x" c1 v="ls - all " s=9,9
+13194 in "insertCompositionText" "x" c1 v="ls - all x" s=10,10
+13227 ku "Unidentified" "" 229 v="ls - all x" s=10,10
+13475 ce "x" v="ls - all x" s=10,10
+13527 kd "Unidentified" "" 229 v="ls - all x" s=10,10
+13561 bi "insertText" "." c0 v="ls - all x" s=10,10
+13605 in "insertText" "." c0 v="ls - all x." s=11,11
+13639 ku "Unidentified" "" 229 v="ls - all x." s=11,11
+13672 cs "" v="ls - all x." s=11,11
+13704 cu "x." v="ls - all x." s=11,11
+13803 tx "x."
+14729 ce "x." v="ls - all x." s=11,11
+14815 kd "Enter" "" 13 v="ls - all x." s=11,11
+14824 tx ""
+14825 tx "\r"
+=D.S2 got="ls all x." want="ls -all x." FAIL
+@D.S3 want="x."
+47 ku "Enter" "" 13 v="" s=0,0
+137 cs "" v="" s=0,0
+180 cu "" v="" s=0,0
+250 cs "" v="" s=0,0
+283 cu "" v="" s=0,0
+2017 kd "Unidentified" "" 229 v="" s=0,0
+2098 cs "" v="" s=0,0
+2106 cu "x" v="" s=0,0
+2145 bi "insertCompositionText" "x" c1 v="" s=0,0
+2187 in "insertCompositionText" "x" c1 v="x" s=1,1
+2229 ku "Unidentified" "" 229 v="x" s=1,1
+4364 ce "x" v="x" s=1,1
+4457 kd "Unidentified" "" 229 v="x" s=1,1
+4499 bi "insertText" "." c0 v="x" s=1,1
+4556 in "insertText" "." c0 v="x." s=2,2
+4599 ku "Unidentified" "" 229 v="x." s=2,2
+4658 cs "" v="x." s=2,2
+4702 cu "x." v="x." s=2,2
+4818 tx "x."
+5130 ce "x." v="x." s=2,2
+5192 kd "Enter" "" 13 v="x." s=2,2
+5201 tx ""
+5202 tx "\r"
+=D.S3 got="x." want="x." PASS
+@D.S4 want="echo hi  there"
+33 ku "Enter" "" 13 v="" s=0,0
+137 cs "" v="" s=0,0
+178 cu "" v="" s=0,0
+294 cs "" v="" s=0,0
+334 cu "" v="" s=0,0
+1340 kd "Unidentified" "" 229 v="" s=0,0
+1421 cs "" v="" s=0,0
+1429 cu "e" v="" s=0,0
+1460 bi "insertCompositionText" "e" c1 v="" s=0,0
+1494 in "insertCompositionText" "e" c1 v="e" s=1,1
+1527 ku "Unidentified" "" 229 v="e" s=1,1
+1726 kd "Unidentified" "" 229 v="e" s=1,1
+1780 cu "ec" v="e" s=0,1
+1818 bi "insertCompositionText" "ec" c1 v="e" s=0,1
+1868 in "insertCompositionText" "ec" c1 v="ec" s=2,2
+1903 ku "Unidentified" "" 229 v="ec" s=2,2
+2130 kd "Unidentified" "" 229 v="ec" s=2,2
+2182 cu "ech" v="ec" s=0,2
+2215 bi "insertCompositionText" "ech" c1 v="ec" s=0,2
+2249 in "insertCompositionText" "ech" c1 v="ech" s=3,3
+2283 ku "Unidentified" "" 229 v="ech" s=3,3
+2484 kd "Unidentified" "" 229 v="ech" s=3,3
+2540 cu "echo" v="ech" s=0,3
+2574 bi "insertCompositionText" "echo" c1 v="ech" s=0,3
+2623 in "insertCompositionText" "echo" c1 v="echo" s=4,4
+2658 ku "Unidentified" "" 229 v="echo" s=4,4
+3246 ce "echo" v="echo" s=4,4
+3305 kd "Unidentified" "" 229 v="echo" s=4,4
+3339 bi "insertText" " " c0 v="echo" s=4,4
+3392 in "insertText" " " c0 v="echo " s=5,5
+3427 ku "Unidentified" "" 229 v="echo " s=5,5
+3514 cs "" v="echo " s=5,5
+3583 cu "" v="echo " s=5,5
+3634 tx "echo "
+3645 kd "Unidentified" "" 229 v="echo " s=5,5
+3686 cs "" v="echo " s=5,5
+3695 cu "h" v="echo " s=5,5
+3746 bi "insertCompositionText" "h" c1 v="echo " s=5,5
+3782 in "insertCompositionText" "h" c1 v="echo h" s=6,6
+3815 ku "Unidentified" "" 229 v="echo h" s=6,6
+3931 kd "Unidentified" "" 229 v="echo h" s=6,6
+3972 cu "hi" v="echo h" s=5,6
+4008 bi "insertCompositionText" "hi" c1 v="echo h" s=5,6
+4061 in "insertCompositionText" "hi" c1 v="echo hi" s=7,7
+4097 ku "Unidentified" "" 229 v="echo hi" s=7,7
+4309 ce "hi" v="echo hi" s=7,7
+4364 kd "Unidentified" "" 229 v="echo hi" s=7,7
+4402 bi "insertText" " " c0 v="echo hi" s=7,7
+4437 in "insertText" " " c0 v="echo hi " s=8,8
+4473 ku "Unidentified" "" 229 v="echo hi " s=8,8
+4514 cs "" v="echo hi " s=8,8
+4550 cu "" v="echo hi " s=8,8
+4587 tx "hi "
+5696 kd "Unidentified" "" 229 v="echo hi " s=8,8
+5777 bi "insertText" " " c0 v="echo hi " s=8,8
+5816 in "insertText" " " c0 v="echo hi  " s=9,9
+5854 ku "Unidentified" "" 229 v="echo hi  " s=9,9
+5945 cs "" v="echo hi  " s=9,9
+5991 cu "" v="echo hi  " s=9,9
+6258 kd "Unidentified" "" 229 v="echo hi  " s=9,9
+6318 cs "" v="echo hi  " s=9,9
+6325 cu "t" v="echo hi  " s=9,9
+6358 bi "insertCompositionText" "t" c1 v="echo hi  " s=9,9
+6393 in "insertCompositionText" "t" c1 v="echo hi  t" s=10,10
+6429 ku "Unidentified" "" 229 v="echo hi  t" s=10,10
+6472 kd "Unidentified" "" 229 v="echo hi  t" s=10,10
+6507 cu "th" v="echo hi  t" s=9,10
+6542 bi "insertCompositionText" "th" c1 v="echo hi  t" s=9,10
+6578 in "insertCompositionText" "th" c1 v="echo hi  th" s=11,11
+6612 ku "Unidentified" "" 229 v="echo hi  th" s=11,11
+6652 cu "th" v="echo hi  th" s=11,11
+6740 kd "Unidentified" "" 229 v="echo hi  th" s=11,11
+6781 cu "the" v="echo hi  th" s=9,11
+6816 bi "insertCompositionText" "the" c1 v="echo hi  th" s=9,11
+6852 in "insertCompositionText" "the" c1 v="echo hi  the" s=12,12
+6909 ku "Unidentified" "" 229 v="echo hi  the" s=12,12
+6953 cu "the" v="echo hi  the" s=12,12
+6991 kd "Unidentified" "" 229 v="echo hi  the" s=12,12
+7029 cu "ther" v="echo hi  the" s=9,12
+7065 bi "insertCompositionText" "ther" c1 v="echo hi  the" s=9,12
+7100 in "insertCompositionText" "ther" c1 v="echo hi  ther" s=13,13
+7135 ku "Unidentified" "" 229 v="echo hi  ther" s=13,13
+7178 cu "ther" v="echo hi  ther" s=13,13
+7219 kd "Unidentified" "" 229 v="echo hi  ther" s=13,13
+7256 cu "there" v="echo hi  ther" s=9,13
+7292 bi "insertCompositionText" "there" c1 v="echo hi  ther" s=9,13
+7328 in "insertCompositionText" "there" c1 v="echo hi  there" s=14,14
+7360 ku "Unidentified" "" 229 v="echo hi  there" s=14,14
+7441 cu "there" v="echo hi  there" s=14,14
+8966 ce "there" v="echo hi  there" s=14,14
+9033 kd "Enter" "" 13 v="echo hi  there" s=14,14
+9040 tx "there"
+9040 tx "\r"
+=D.S4 got="echo hi there" want="echo hi  there" FAIL
+@D.S5 want="cd .."
+33 ku "Enter" "" 13 v="" s=0,0
+130 cs "" v="" s=0,0
+172 cu "" v="" s=0,0
+350 cs "" v="" s=0,0
+392 cu "" v="" s=0,0
+3206 kd "Unidentified" "" 229 v="" s=0,0
+3293 cs "" v="" s=0,0
+3303 cu "c" v="" s=0,0
+3347 bi "insertCompositionText" "c" c1 v="" s=0,0
+3393 in "insertCompositionText" "c" c1 v="c" s=1,1
+3439 ku "Unidentified" "" 229 v="c" s=1,1
+3543 kd "Unidentified" "" 229 v="c" s=1,1
+3607 cu "cd" v="c" s=0,1
+3657 bi "insertCompositionText" "cd" c1 v="c" s=0,1
+3696 in "insertCompositionText" "cd" c1 v="cd" s=2,2
+3732 ku "Unidentified" "" 229 v="cd" s=2,2
+3776 cu "cd" v="cd" s=2,2
+3821 ce "cd" v="cd" s=2,2
+3857 kd "Unidentified" "" 229 v="cd" s=2,2
+3893 bi "insertText" " " c0 v="cd" s=2,2
+3929 in "insertText" " " c0 v="cd " s=3,3
+3966 ku "Unidentified" "" 229 v="cd " s=3,3
+4056 cs "" v="cd " s=3,3
+4100 cu "" v="cd " s=3,3
+4149 tx "cd "
+4213 cs "" v="cd " s=3,3
+4249 cu "" v="cd " s=3,3
+4472 kd "Unidentified" "" 229 v="cd " s=3,3
+4538 bi "deleteContentBackward" null c0 v="cd " s=2,3
+4574 in "deleteContentBackward" null c0 v="cd" s=2,2
+4609 ku "Unidentified" "" 229 v="cd" s=2,2
+4645 cs "" v="cd" s=2,2
+4682 cu "cd" v="cd" s=2,2
+4718 ce "cd" v="cd" s=2,2
+4757 kd "Unidentified" "" 229 v="cd" s=2,2
+4793 bi "insertText" "." c0 v="cd" s=2,2
+4830 in "insertText" "." c0 v="cd." s=3,3
+4866 ku "Unidentified" "" 229 v="cd." s=3,3
+4903 cs "" v="cd." s=3,3
+4939 cu "cd." v="cd." s=3,3
+5033 ce "cd." v="cd." s=3,3
+5104 kd "Unidentified" "" 229 v="cd." s=3,3
+5144 bi "insertText" "." c0 v="cd." s=3,3
+5181 in "insertText" "." c0 v="cd.." s=4,4
+5217 ku "Unidentified" "" 229 v="cd.." s=4,4
+5255 cs "" v="cd.." s=4,4
+5293 cu "" v="cd.." s=4,4
+5338 cs "" v="cd.." s=4,4
+5376 cu "" v="cd.." s=4,4
+5416 tx ".."
+5418 cs "" v="cd.." s=4,4
+5457 cu "" v="cd.." s=4,4
+5500 kd "Enter" "" 13 v="cd.." s=4,4
+5508 tx ""
+5509 tx "\r"
+=D.S5 got="cd .." want="cd .." PASS
+@D.S6 want="teh cat"
+38 ku "Enter" "" 13 v="" s=0,0
+89 cs "" v="" s=0,0
+151 cu "" v="" s=0,0
+253 cs "" v="" s=0,0
+297 cu "" v="" s=0,0
+1761 kd "Unidentified" "" 229 v="" s=0,0
+1830 cs "" v="" s=0,0
+1838 cu "t" v="" s=0,0
+1871 bi "insertCompositionText" "t" c1 v="" s=0,0
+1908 in "insertCompositionText" "t" c1 v="t" s=1,1
+1945 ku "Unidentified" "" 229 v="t" s=1,1
+2067 kd "Unidentified" "" 229 v="t" s=1,1
+2137 cu "te" v="t" s=0,1
+2174 bi "insertCompositionText" "te" c1 v="t" s=0,1
+2212 in "insertCompositionText" "te" c1 v="te" s=2,2
+2249 ku "Unidentified" "" 229 v="te" s=2,2
+2294 kd "Unidentified" "" 229 v="te" s=2,2
+2342 cu "teh" v="te" s=0,2
+2405 bi "insertCompositionText" "teh" c1 v="te" s=0,2
+2445 in "insertCompositionText" "teh" c1 v="teh" s=3,3
+2484 ku "Unidentified" "" 229 v="teh" s=3,3
+2528 cu "teh" v="teh" s=3,3
+2631 ce "teh" v="teh" s=3,3
+2678 kd "Unidentified" "" 229 v="teh" s=3,3
+2719 bi "insertText" " " c0 v="teh" s=3,3
+2757 in "insertText" " " c0 v="teh " s=4,4
+2797 ku "Unidentified" "" 229 v="teh " s=4,4
+2842 cs "" v="teh " s=4,4
+2880 cu "" v="teh " s=4,4
+2924 tx "teh "
+3109 kd "Unidentified" "" 229 v="teh " s=4,4
+3171 cs "" v="teh " s=4,4
+3178 cu "c" v="teh " s=4,4
+3225 bi "insertCompositionText" "c" c1 v="teh " s=4,4
+3283 in "insertCompositionText" "c" c1 v="teh c" s=5,5
+3322 ku "Unidentified" "" 229 v="teh c" s=5,5
+3367 kd "Unidentified" "" 229 v="teh c" s=5,5
+3407 cu "ca" v="teh c" s=4,5
+3445 bi "insertCompositionText" "ca" c1 v="teh c" s=4,5
+3484 in "insertCompositionText" "ca" c1 v="teh ca" s=6,6
+3523 ku "Unidentified" "" 229 v="teh ca" s=6,6
+3569 cu "ca" v="teh ca" s=6,6
+3615 kd "Unidentified" "" 229 v="teh ca" s=6,6
+3653 cu "cat" v="teh ca" s=4,6
+3692 bi "insertCompositionText" "cat" c1 v="teh ca" s=4,6
+3724 in "insertCompositionText" "cat" c1 v="teh cat" s=7,7
+3752 ku "Unidentified" "" 229 v="teh cat" s=7,7
+3837 cu "cat" v="teh cat" s=7,7
+6290 ce "cat" v="teh cat" s=7,7
+6408 kd "Enter" "" 13 v="teh cat" s=7,7
+6416 tx "cat"
+6417 tx "\r"
+=D.S6 got="teh cat" want="teh cat" PASS
+!D strip=? caps=?
+6463 ku "Enter" "" 13 v="" s=0,0
+6579 cs "" v="" s=0,0
+6624 cu "" v="" s=0,0
+6780 cs "" v="" s=0,0
+6828 cu "" v="" s=0,0
+9641 cs "" v="" s=0,0
+9719 cu "" v="" s=0,0
+9819 cs "" v="" s=0,0
+9863 cu "" v="" s=0,0
+11946 cs "" v="" s=0,0
+12011 cu "" v="" s=0,0
+12112 cs "" v="" s=0,0
+12157 cu "" v="" s=0,0
+#var E input type=text autocomplete=off autocorrect=off autocapitalize=off spellcheck=false inputmode=-
+@E.S1 want="ls -all."
+1222 fo v="" s=0,0
+3243 kd "Unidentified" "" 229 v="" s=0,0
+3321 bi "insertText" "l" c0 v="" s=0,0
+3386 in "insertText" "l" c0 v="l" s=1,1
+3447 ku "Unidentified" "" 229 v="l" s=1,1
+5155 kd "Unidentified" "" 229 v="l" s=1,1
+5220 bi "insertText" "s" c0 v="l" s=1,1
+5259 in "insertText" "s" c0 v="ls" s=2,2
+5297 ku "Unidentified" "" 229 v="ls" s=2,2
+6964 kd "Unidentified" "" 229 v="ls" s=2,2
+7048 bi "insertText" " " c0 v="ls" s=2,2
+7088 in "insertText" " " c0 v="ls " s=3,3
+7126 ku "Unidentified" "" 229 v="ls " s=3,3
+8822 kd "Unidentified" "" 229 v="ls " s=3,3
+8884 bi "insertText" "-" c0 v="ls " s=3,3
+8923 in "insertText" "-" c0 v="ls -" s=4,4
+8993 ku "Unidentified" "" 229 v="ls -" s=4,4
+9832 kd "Unidentified" "" 229 v="ls -" s=4,4
+9898 bi "insertText" "a" c0 v="ls -" s=4,4
+9937 in "insertText" "a" c0 v="ls -a" s=5,5
+9975 ku "Unidentified" "" 229 v="ls -a" s=5,5
+10087 kd "Unidentified" "" 229 v="ls -a" s=5,5
+10135 bi "insertText" "l" c0 v="ls -a" s=5,5
+10174 in "insertText" "l" c0 v="ls -al" s=6,6
+10213 ku "Unidentified" "" 229 v="ls -al" s=6,6
+10317 kd "Unidentified" "" 229 v="ls -al" s=6,6
+10364 bi "insertText" "l" c0 v="ls -al" s=6,6
+10404 in "insertText" "l" c0 v="ls -all" s=7,7
+10443 ku "Unidentified" "" 229 v="ls -all" s=7,7
+12288 kd "Unidentified" "" 229 v="ls -all" s=7,7
+12363 bi "insertText" "." c0 v="ls -all" s=7,7
+12402 in "insertText" "." c0 v="ls -all." s=8,8
+12441 ku "Unidentified" "" 229 v="ls -all." s=8,8
+17146 kd "Enter" "" 13 v="ls -all." s=8,8
+=E.S1 got="ls -all." want="ls -all." PASS
+@E.S4 want="echo hi  there"
+71 bi "insertLineBreak" null c0 v="" s=0,0
+123 ku "Enter" "" 13 v="" s=0,0
+1621 kd "Unidentified" "" 229 v="" s=0,0
+1706 bi "insertText" "e" c0 v="" s=0,0
+1744 in "insertText" "e" c0 v="e" s=1,1
+1783 ku "Unidentified" "" 229 v="e" s=1,1
+2118 kd "Unidentified" "" 229 v="e" s=1,1
+2189 bi "insertText" "c" c0 v="e" s=1,1
+2229 in "insertText" "c" c0 v="ec" s=2,2
+2268 ku "Unidentified" "" 229 v="ec" s=2,2
+2499 kd "Unidentified" "" 229 v="ec" s=2,2
+2566 bi "insertText" "h" c0 v="ec" s=2,2
+2606 in "insertText" "h" c0 v="ech" s=3,3
+2646 ku "Unidentified" "" 229 v="ech" s=3,3
+2769 kd "Unidentified" "" 229 v="ech" s=3,3
+2819 bi "insertText" "o" c0 v="ech" s=3,3
+2861 in "insertText" "o" c0 v="echo" s=4,4
+2901 ku "Unidentified" "" 229 v="echo" s=4,4
+5042 kd "Unidentified" "" 229 v="echo" s=4,4
+5123 bi "insertText" " " c0 v="echo" s=4,4
+5174 in "insertText" " " c0 v="echo " s=5,5
+5224 ku "Unidentified" "" 229 v="echo " s=5,5
+5508 kd "Unidentified" "" 229 v="echo " s=5,5
+5567 bi "insertText" "h" c0 v="echo " s=5,5
+5607 in "insertText" "h" c0 v="echo h" s=6,6
+5647 ku "Unidentified" "" 229 v="echo h" s=6,6
+5780 kd "Unidentified" "" 229 v="echo h" s=6,6
+5830 bi "insertText" "i" c0 v="echo h" s=6,6
+5871 in "insertText" "i" c0 v="echo hi" s=7,7
+5911 ku "Unidentified" "" 229 v="echo hi" s=7,7
+6845 kd "Unidentified" "" 229 v="echo hi" s=7,7
+6909 bi "insertText" " " c0 v="echo hi" s=7,7
+6949 in "insertText" " " c0 v="echo hi " s=8,8
+6989 ku "Unidentified" "" 229 v="echo hi " s=8,8
+7106 kd "Unidentified" "" 229 v="echo hi " s=8,8
+7156 bi "insertText" " " c0 v="echo hi " s=8,8
+7196 in "insertText" " " c0 v="echo hi  " s=9,9
+7235 ku "Unidentified" "" 229 v="echo hi  " s=9,9
+7515 kd "Unidentified" "" 229 v="echo hi  " s=9,9
+7581 bi "insertText" "t" c0 v="echo hi  " s=9,9
+7621 in "insertText" "t" c0 v="echo hi  t" s=10,10
+7660 ku "Unidentified" "" 229 v="echo hi  t" s=10,10
+7895 kd "Unidentified" "" 229 v="echo hi  t" s=10,10
+7964 bi "insertText" "h" c0 v="echo hi  t" s=10,10
+8004 in "insertText" "h" c0 v="echo hi  th" s=11,11
+8043 ku "Unidentified" "" 229 v="echo hi  th" s=11,11
+8141 kd "Unidentified" "" 229 v="echo hi  th" s=11,11
+8192 bi "insertText" "e" c0 v="echo hi  th" s=11,11
+8232 in "insertText" "e" c0 v="echo hi  the" s=12,12
+8272 ku "Unidentified" "" 229 v="echo hi  the" s=12,12
+8390 kd "Unidentified" "" 229 v="echo hi  the" s=12,12
+8441 bi "insertText" "r" c0 v="echo hi  the" s=12,12
+8483 in "insertText" "r" c0 v="echo hi  ther" s=13,13
+8523 ku "Unidentified" "" 229 v="echo hi  ther" s=13,13
+8628 kd "Unidentified" "" 229 v="echo hi  ther" s=13,13
+8676 bi "insertText" "e" c0 v="echo hi  ther" s=13,13
+8717 in "insertText" "e" c0 v="echo hi  there" s=14,14
+8757 ku "Unidentified" "" 229 v="echo hi  there" s=14,14
+9206 kd "Enter" "" 13 v="echo hi  there" s=14,14
+=E.S4 got="echo hi  there" want="echo hi  there" PASS
+@E.S6 want="teh cat"
+68 bi "insertLineBreak" null c0 v="" s=0,0
+109 ku "Enter" "" 13 v="" s=0,0
+1355 kd "Unidentified" "" 229 v="" s=0,0
+1425 bi "insertText" "t" c0 v="" s=0,0
+1465 in "insertText" "t" c0 v="t" s=1,1
+1506 ku "Unidentified" "" 229 v="t" s=1,1
+1775 kd "Unidentified" "" 229 v="t" s=1,1
+1842 bi "insertText" "e" c0 v="t" s=1,1
+1885 in "insertText" "e" c0 v="te" s=2,2
+1929 ku "Unidentified" "" 229 v="te" s=2,2
+1980 kd "Unidentified" "" 229 v="te" s=2,2
+2023 bi "insertText" "h" c0 v="te" s=2,2
+2064 in "insertText" "h" c0 v="teh" s=3,3
+2105 ku "Unidentified" "" 229 v="teh" s=3,3
+2411 kd "Unidentified" "" 229 v="teh" s=3,3
+2489 bi "insertText" " " c0 v="teh" s=3,3
+2530 in "insertText" " " c0 v="teh " s=4,4
+2570 ku "Unidentified" "" 229 v="teh " s=4,4
+2689 kd "Unidentified" "" 229 v="teh " s=4,4
+2739 bi "insertText" "c" c0 v="teh " s=4,4
+2781 in "insertText" "c" c0 v="teh c" s=5,5
+2822 ku "Unidentified" "" 229 v="teh c" s=5,5
+2871 kd "Unidentified" "" 229 v="teh c" s=5,5
+2915 bi "insertText" "a" c0 v="teh c" s=5,5
+2957 in "insertText" "a" c0 v="teh ca" s=6,6
+2998 ku "Unidentified" "" 229 v="teh ca" s=6,6
+3114 kd "Unidentified" "" 229 v="teh ca" s=6,6
+3185 bi "insertText" "t" c0 v="teh ca" s=6,6
+3240 in "insertText" "t" c0 v="teh cat" s=7,7
+3284 ku "Unidentified" "" 229 v="teh cat" s=7,7
+4885 kd "Enter" "" 13 v="teh cat" s=7,7
+=E.S6 got="teh cat" want="teh cat" PASS
+!E strip=? caps=?
+4954 bi "insertLineBreak" null c0 v="" s=0,0
+4996 ku "Enter" "" 13 v="" s=0,0

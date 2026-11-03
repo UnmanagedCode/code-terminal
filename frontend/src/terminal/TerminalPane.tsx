@@ -12,11 +12,11 @@ import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
 import { ExtraKeys } from './ExtraKeys';
 import { keySequence, Modifiers, type ExtraKeyId } from './extraKeys';
-import { attachCapsPlaceholder } from './capsPlaceholder';
 import { attachClipboardKeys } from './keys';
 import { activateLink, linkTip, type LinkTip } from './links';
 import { connectSession, type ConnState, type Connection } from './socket';
 import { disableTextAssist } from './softKeyboard';
+import { attachTouchInput, type TouchInput } from './touchInput';
 import { onThemeChange, terminalTheme, TERMINAL_FONT } from './theme';
 import { useTouchDevice } from './useTouchDevice';
 
@@ -52,6 +52,7 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
   const host = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const conn = useRef<Connection | null>(null);
+  const touchInput = useRef<TouchInput | null>(null);
   const [state, setState] = useState<ConnState>({ kind: 'connecting' });
   const [title, setTitle] = useState('');
   const [tip, setTip] = useState<LinkTip>(null);
@@ -91,7 +92,19 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       setSize({ cols: t.cols, rows: t.rows });
       return { cols: t.cols, rows: t.rows };
     };
-    t.onData((d) => conn.current?.sendInput(mods.apply(d)));
+    t.onData((d) => {
+      // A pending bare-Backspace DEL goes out first, so it lands before these bytes.
+      touchInput.current?.flush();
+      if (touchInput.current?.sendingBare) {
+        // The synthetic DEL is not a keystroke: no modifier applies to it, and an armed one stays armed.
+        conn.current?.sendInput(d);
+        return;
+      }
+      const out = mods.apply(d);
+      // A modifier changed the bytes, so the touch field no longer matches the shell line.
+      if (out !== d) touchInput.current?.clear();
+      conn.current?.sendInput(out);
+    });
     t.onBinary((d) => conn.current?.sendInput(Uint8Array.from(d, (c) => c.charCodeAt(0))));
     t.onTitleChange((s) => setTitle(clampTitle(s)));
     void fontsReady().then(() => {
@@ -135,12 +148,17 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
 
   useEffect(() => {
     if (!touch || !opened) return;
-    return attachCapsPlaceholder(opened);
+    const attached = attachTouchInput(opened);
+    touchInput.current = attached;
+    return () => {
+      attached.dispose();
+      touchInput.current = null;
+    };
   }, [touch, opened]);
 
   useEffect(() => {
-    if (focused) term.current?.focus();
-  }, [focused, state.kind]);
+    if (focused) (touchInput.current ?? term.current)?.focus();
+  }, [focused, state.kind, opened, touch]);
 
   function sendExtraKey(id: ExtraKeyId) {
     onFocus();
@@ -149,7 +167,10 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       return;
     }
     const t = term.current;
-    if (t?.element) t.input(keySequence(id, t.modes.applicationCursorKeysMode));
+    if (t?.element) {
+      t.input(keySequence(id, t.modes.applicationCursorKeysMode));
+      touchInput.current?.clear();
+    }
   }
 
   async function restart() {

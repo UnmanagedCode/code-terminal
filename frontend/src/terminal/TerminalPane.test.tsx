@@ -21,6 +21,7 @@ vi.mock('@xterm/xterm', () => ({
     }
     input = termInput;
     onSelectionChange() { return { dispose() {} }; }
+    onRender() { return { dispose() {} }; }
     onData(fn: (d: string) => void) {
       dataFns.add(fn);
       dataListener = (d) => dataFns.forEach((f) => f(d));
@@ -42,8 +43,8 @@ vi.mock('./socket', () => ({
 }));
 
 const { TerminalPane } = await import('./TerminalPane');
-const { PLACEHOLDER } = await import('./capsPlaceholder');
 const { EXTRA_KEYS } = await import('./extraKeys');
+const { EMPTY_LINE, feedLine, lineText } = await import('../../../harness/mobile-input/captureLog');
 const { TITLE_MAX_CHARS } = await import('../../../shared/terminal.js');
 
 const fetchMock = vi.fn();
@@ -158,7 +159,7 @@ describe('TerminalPane', () => {
     async function renderTouch(onFocus?: () => void) {
       stubMatchMedia(true);
       renderPane(vi.fn(), onFocus);
-      await waitFor(() => expect(document.querySelector('.xterm-helper-textarea')).not.toBeNull());
+      await waitFor(() => expect(document.querySelector('.xterm-touch-input')).not.toBeNull());
     }
     const type = (d: string) => act(() => dataListener!(d));
 
@@ -208,6 +209,108 @@ describe('TerminalPane', () => {
       fireEvent.click(key('Up arrow'));
       expect(termInput).toHaveBeenLastCalledWith('\x1bOA');
       expect(sendInput).toHaveBeenLastCalledWith('\x1bOA');
+    });
+
+    describe('the synthetic Backspace of a bare 229 pair', () => {
+      const proxy = () => document.querySelector<HTMLInputElement>('.xterm-touch-input')!;
+      const bare = () => {
+        fireEvent.keyDown(proxy(), { key: 'Unidentified', keyCode: 229 });
+        fireEvent.keyUp(proxy(), { key: 'Unidentified', keyCode: 229 });
+      };
+      const typeInto = (text: string) => {
+        proxy().value += text;
+        fireEvent.input(proxy(), { inputType: 'insertText', data: text });
+      };
+      const sentBytes = () => sendInput.mock.calls.map((c) => c[0] as string);
+
+      test('goes out unmodified and leaves an armed Alt armed for the next real key', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('ab');
+        fireEvent.click(key('Alt'));
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(60); });
+          expect(sentBytes().at(-1)).toBe('\x7f');
+          expect(proxy().value).toBe('a');
+          expect(key('Alt').getAttribute('aria-pressed')).toBe('true');
+          typeInto('c');
+          expect(sentBytes().at(-1)).toBe('\x1bc');
+        } finally { vi.useRealTimers(); }
+      });
+
+      test('two pairs 25 ms apart with Alt armed send two plain DELs and leave Alt armed', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        sendInput.mockClear();
+        fireEvent.click(key('Alt'));
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(25); });
+          bare();
+          act(() => { vi.advanceTimersByTime(200); });
+          expect(sentBytes()).toEqual(['\x7f', '\x7f']);
+          expect(proxy().value).toBe('a');
+          expect(key('Alt').getAttribute('aria-pressed')).toBe('true');
+        } finally { vi.useRealTimers(); }
+      });
+
+      test('the same with Ctrl locked: two plain DELs, still locked', async () => {
+        const now = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValueOnce(100).mockReturnValue(1000);
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        fireEvent.click(key('Control'));
+        fireEvent.click(key('Control'));
+        expect(key('Control').getAttribute('data-mod-state')).toBe('locked');
+        sendInput.mockClear();
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(25); });
+          bare();
+          act(() => { vi.advanceTimersByTime(200); });
+          expect(sentBytes()).toEqual(['\x7f', '\x7f']);
+          expect(key('Control').getAttribute('data-mod-state')).toBe('locked');
+        } finally { vi.useRealTimers(); now.mockRestore(); }
+      });
+
+      test('a character typed inside the guard cancels the DEL whether or not beforeinput fired: the field and the shell agree', async () => {
+        for (const withBeforeInput of [false, true]) {
+          cleanup();
+          sendInput.mockClear();
+          await renderTouch();
+          await waitFor(() => expect(proxy()).not.toBeNull());
+          typeInto('ab');
+          sendInput.mockClear();
+          vi.useFakeTimers();
+          try {
+            bare();
+            if (withBeforeInput) fireEvent(proxy(), new InputEvent('beforeinput', { inputType: 'insertText', data: 'c', bubbles: true, cancelable: true }));
+            typeInto('c');
+            act(() => { vi.advanceTimersByTime(200); });
+            expect(sentBytes(), `beforeinput=${withBeforeInput}`).toEqual(['c']);
+            expect(proxy().value).toBe('abc');
+          } finally { vi.useRealTimers(); }
+        }
+      });
+
+      test('a bar key tapped inside the guard goes out after the DEL, not before it', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        sendInput.mockClear();
+        vi.useFakeTimers();
+        try {
+          bare();
+          fireEvent.click(key('Dash'));
+          act(() => { vi.advanceTimersByTime(600); });
+          expect(sentBytes()).toEqual(['\x7f', '-']);
+        } finally { vi.useRealTimers(); }
+      });
     });
 
     test('a one-shot Ctrl modifies the next typed character, then clears, visibly', async () => {
@@ -261,52 +364,101 @@ describe('TerminalPane', () => {
       expect(sendInput).toHaveBeenLastCalledWith('c');
     });
 
-    describe('caps placeholder', () => {
-      const field = () => document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')!;
+    describe('touch input', () => {
+      const proxy = () => screen.queryByRole('textbox', { name: 'Terminal input' }) as HTMLInputElement | null;
+      const textarea = () => document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')!;
+      const typeInto = (el: HTMLInputElement, text: string) => {
+        el.value += text;
+        fireEvent.input(el, { inputType: 'insertText', data: text });
+      };
 
-      test('on touch the helper field holds the placeholder after open', async () => {
+      test('on touch a textbox named "Terminal input" exists after open', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        expect(textarea().disabled).toBe(true);
       });
 
-      test('on desktop the field is never written: not at open, nor after Enter, blur or focus', async () => {
+      test('typing into the proxy reaches the pty, and a bar Ctrl then c sends ETX', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'l');
+        expect(sendInput).toHaveBeenLastCalledWith('l');
+        fireEvent.click(key('Control'));
+        typeInto(proxy()!, 'c');
+        expect(sendInput).toHaveBeenLastCalledWith('\x03');
+        expect(proxy()!.value).toBe('');
+      });
+
+      const shell = () => lineText(feedLine(EMPTY_LINE, sendInput.mock.calls.map((c) => c[0]).join('')));
+      const deleteAll = (el: HTMLInputElement) => {
+        el.value = '';
+        fireEvent.input(el, { inputType: 'deleteWordBackward' });
+      };
+
+      test('a bar symbol key empties the field, so a later word-delete cannot remove more than was typed since', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'ls');
+        fireEvent.click(key('Dash'));
+        expect(proxy()!.value).toBe('');
+        typeInto(proxy()!, 'la');
+        deleteAll(proxy()!);
+        expect(shell()).toBe('ls-');
+      });
+
+      test('a modifier-changed chunk mid-composition leaves the field alone until compositionend', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        fireEvent.compositionStart(proxy()!);
+        fireEvent.click(key('Control'));
+        proxy()!.value = 'a';
+        fireEvent.input(proxy()!, { inputType: 'insertCompositionText', data: 'a', isComposing: true });
+        expect(sendInput).toHaveBeenLastCalledWith('\x01');
+        expect(proxy()!.value).toBe('a');
+        proxy()!.value = 'ab';
+        fireEvent.input(proxy()!, { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+        fireEvent.compositionEnd(proxy()!, { data: 'ab' });
+        expect(proxy()!.value).toBe('');
+        expect(sendInput.mock.calls.map((c) => c[0]).join('')).toBe('\x01b');
+      });
+
+      test('after a bar Ctrl+l the field is empty: no phantom character, and an insert at caret 0 stays clean', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto(proxy()!, 'ab');
+        fireEvent.click(key('Control'));
+        typeInto(proxy()!, 'l');
+        expect(proxy()!.value).toBe('');
+        proxy()!.value = 'x';
+        proxy()!.setSelectionRange(0, 0);
+        fireEvent.input(proxy()!, { inputType: 'insertText', data: 'x' });
+        expect(sendInput.mock.calls.map((c) => c[0]).join('')).toBe('ab\x0cx');
+      });
+
+      test('on desktop there is no proxy and the textarea stays enabled', async () => {
         renderPane();
-        await waitFor(() => expect(field()).not.toBeNull());
+        await waitFor(() => expect(textarea()).not.toBeNull());
         await waitFor(() => expect(matchMediaMock).toHaveBeenCalled());
-        vi.useFakeTimers();
-        try {
-          fireEvent.keyDown(field(), { keyCode: 13 });
-          fireEvent.blur(field());
-          fireEvent.focus(field());
-          act(() => { vi.advanceTimersByTime(10); });
-          expect(field().value).toBe('');
-        } finally { vi.useRealTimers(); }
+        expect(proxy()).toBeNull();
+        expect(textarea().disabled).toBe(false);
       });
 
-      test('the gate follows the media query live: leaving touch empties the field, returning reseeds it', async () => {
+      test('the gate follows the media query live: leaving touch removes the proxy and re-enables the textarea', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
+        await waitFor(() => expect(proxy()).not.toBeNull());
         mqlMatches = false;
         act(() => mqlListeners.forEach((f) => f()));
-        expect(field().value).toBe('');
+        expect(proxy()).toBeNull();
+        expect(textarea().disabled).toBe(false);
         mqlMatches = true;
         act(() => mqlListeners.forEach((f) => f()));
-        expect(field().value).toBe(PLACEHOLDER);
+        expect(proxy()).not.toBeNull();
+        expect(textarea().disabled).toBe(true);
       });
 
-      test('a DEL for a deleted placeholder reaches the pty through onData', async () => {
+      test('the focus effect focuses the proxy on touch', async () => {
         await renderTouch();
-        await waitFor(() => expect(field().value).toBe(PLACEHOLDER));
-        vi.useFakeTimers();
-        try {
-          fireEvent(field(), new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true }));
-          field().value = '';
-          fireEvent(field(), new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
-          act(() => { vi.advanceTimersByTime(10); });
-          expect(termInput).toHaveBeenCalledWith('\x7f');
-          expect(sendInput).toHaveBeenCalledWith('\x7f');
-          expect(field().value).toBe(PLACEHOLDER);
-        } finally { vi.useRealTimers(); }
+        await waitFor(() => expect(document.activeElement).toBe(proxy()));
       });
     });
   });

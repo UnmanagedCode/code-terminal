@@ -1,0 +1,1007 @@
+// Real xterm under happy-dom: the proxy's contract is about what reaches xterm's onData, and
+// about xterm's own focus and paste paths. The device steps come from a real SwiftKey capture.
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { Terminal } from '@xterm/xterm';
+import { EMPTY_LINE, feedLine, lineText, parseCaptureLog, type LogEvent } from '../../../harness/mobile-input/captureLog';
+import { backspaceKey, bareBackspacePair, driftCaret, insertAtCaret, replayStep } from '../test/replay';
+import LOG from './fixtures/swiftkey-capture-log.txt?raw';
+import S7_LOG from './fixtures/swiftkey-s7-log.txt?raw';
+import BARE_LOG from './fixtures/swiftkey-bare-backspace-log.txt?raw';
+import { attachTouchInput } from './touchInput';
+
+const STEPS = parseCaptureLog(LOG).filter((s) => s.verdict !== undefined);
+const step = (variant: string, id: string) => STEPS.find((s) => s.variant === variant && s.id === id)!;
+
+let t: Terminal;
+let el: HTMLInputElement;
+let ta: HTMLTextAreaElement;
+let bytes: string[];
+let touch: ReturnType<typeof attachTouchInput>;
+
+let clipboard: { writeText: ReturnType<typeof vi.fn<() => Promise<void>>>; readText: ReturnType<typeof vi.fn<() => Promise<string>>> };
+
+function setup(opts: { focusTextarea?: boolean } = {}) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  t = new Terminal();
+  t.open(host);
+  ta = t.textarea!;
+  if (opts.focusTextarea) ta.focus();
+  bytes = [];
+  t.onData((d) => bytes.push(d));
+  clipboard = { writeText: vi.fn(() => Promise.resolve()), readText: vi.fn(() => Promise.resolve('')) };
+  touch = attachTouchInput(t, clipboard);
+  el = t.element!.querySelector<HTMLInputElement>('.xterm-touch-input')!;
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  setup();
+});
+afterEach(() => {
+  touch.dispose();
+  t.dispose();
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+});
+
+const advance = () => vi.advanceTimersByTime(10);
+const sent = () => bytes.join('');
+const replay = (events: readonly LogEvent[], timers: 'each' | 'end' = 'each') => replayStep(el, events, { advance, timers });
+const fire = (type: string, init: Record<string, unknown> = {}) => {
+  const Ctor = type.startsWith('key') ? KeyboardEvent : type.startsWith('composition') ? CompositionEvent : InputEvent;
+  const ev = new Ctor(type, { bubbles: true, cancelable: true, ...init } as EventInit);
+  el.dispatchEvent(ev);
+  return ev;
+};
+// A plain edit at the end of the field, as a keyboard without suggestions makes it.
+const typeText = (s: string) => {
+  el.value += s;
+  el.setSelectionRange(el.value.length, el.value.length);
+  fire('input', { inputType: 'insertText', data: s });
+};
+const press = (key: string, keyCode: number, init: Record<string, unknown> = {}) => fire('keydown', { key, keyCode, ...init });
+const writeMode = (seq: string) => { t.write(seq); advance(); };
+// What a shell line would hold after these bytes.
+const shellLine = () => lineText(feedLine(EMPTY_LINE, sent()));
+// A keyboard edit that lands at the caret, wherever it is.
+const typeAtCaret = (s: string) => {
+  const i = el.selectionStart ?? el.value.length;
+  el.value = el.value.slice(0, i) + s + el.value.slice(i);
+  el.setSelectionRange(i + s.length, i + s.length);
+  fire('input', { inputType: 'insertText', data: s });
+};
+
+describe('replaying device logs into the proxy', () => {
+  test('a keyboard with no suggestions (variant E) sends exactly the wanted line and CR', () => {
+    for (const id of ['S1', 'S4', 'S6']) {
+      bytes = [];
+      replay(step('E', id).events);
+      expect(sent(), id).toBe(`${step('E', id).want}\r`);
+      expect(el.value, `${id} cleared after Enter`).toBe('');
+    }
+    expect(step('E', 'S1').want).toBe('ls -all.');
+  });
+
+  test('every B to E step replays to the same bytes whether timers run per event or at the end (nothing is timer-dependent), and the shell line is the field at Enter', () => {
+    let checked = 0;
+    for (const s of STEPS.filter((x) => x.variant !== 'A')) {
+      const enter = [...s.events].reverse().find((e): e is Extract<LogEvent, { key: string }> => e.kind === 'kd' && e.key === 'Enter');
+      if (!enter) continue;
+      const runs = (['each', 'end'] as const).map((mode) => {
+        el.value = '';
+        touch.dispose();
+        t.dispose();
+        document.body.innerHTML = '';
+        setup();
+        replay(s.events, mode);
+        return sent();
+      });
+      expect(runs[0], `${s.variant}.${s.id} batching`).toBe(runs[1]);
+      expect(lineText(feedLine(EMPTY_LINE, runs[0])), `${s.variant}.${s.id} line`).toBe(enter.v);
+      checked++;
+    }
+    expect(checked).toBeGreaterThanOrEqual(20);
+  });
+
+  test('B.S5 never sends the whole field again as one chunk', () => {
+    const s = step('B', 'S5');
+    replay(s.events);
+    const enter = s.events.find((e): e is Extract<LogEvent, { key: string }> => e.kind === 'kd' && e.key === 'Enter')!;
+    const field = enter.v;
+    expect(field.length).toBeGreaterThan(2);
+    expect(bytes).not.toContain(field);
+    expect(bytes.filter((b) => b.length > 1 && b.includes(field))).toEqual([]);
+  });
+});
+
+describe('Enter', () => {
+  test('sends exactly CR, clears the field, sends nothing for the line-break beforeinput/keyup that follow, and the next typing starts empty', () => {
+    typeText('ls');
+    const enter = press('Enter', 13);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(sent()).toBe('ls\r');
+    expect(el.value).toBe('');
+    bytes = [];
+    replay(step('E', 'S4').events.slice(0, 2)); // beforeinput insertLineBreak, keyup Enter
+    expect(sent()).toBe('');
+    typeText('e');
+    expect(sent()).toBe('e');
+  });
+});
+
+describe('deletion', () => {
+  const del = (inputType: string, next: string) => {
+    el.value = next;
+    el.setSelectionRange(next.length, next.length);
+    fire('input', { inputType });
+  };
+
+  test('a backspace is one DEL and a word deletion is one DEL per character', () => {
+    typeText('abc');
+    bytes = [];
+    del('deleteContentBackward', 'ab');
+    expect(sent()).toBe('\x7f');
+    bytes = [];
+    typeText('cde');
+    bytes = [];
+    del('deleteWordBackward', 'ab');
+    expect(sent()).toBe('\x7f\x7f\x7f');
+  });
+
+  test('Backspace keydown on an empty field sends one DEL and is prevented', () => {
+    const ev = press('Backspace', 8);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('\x7f');
+  });
+
+  test('a delete then Enter leaves no DEL after the CR, even when timers run later', () => {
+    typeText('ab');
+    del('deleteContentBackward', 'a');
+    press('Enter', 13);
+    advance();
+    expect(sent()).toBe('ab\x7f\r');
+  });
+
+  test('deleting an emoji sends one DEL', () => {
+    typeText('😀');
+    bytes = [];
+    del('deleteContentBackward', '');
+    expect(sent()).toBe('\x7f');
+  });
+});
+
+describe('caret', () => {
+  test('B.S1 first commit leaving the caret at 0: the caret goes back to the end and the next character appends', () => {
+    const open = step('B', 'S1').events;
+    const firstIn = open.findIndex((e) => e.kind === 'in');
+    expect(open[firstIn]).toMatchObject({ s0: 0, s1: 0 });
+    replay(open.slice(0, firstIn + 1));
+    expect([el.selectionStart, el.selectionEnd]).toEqual([el.value.length, el.value.length]);
+    bytes = [];
+    typeAtCaret('s');
+    expect(el.value.endsWith('s')).toBe(true);
+    expect(sent()).toBe('s');
+  });
+});
+
+describe('composition', () => {
+  const comp = (value: string) => {
+    el.value = value;
+    el.setSelectionRange(value.length, value.length);
+    fire('input', { inputType: 'insertCompositionText', data: value, isComposing: true });
+  };
+
+  test('each composition update is sent as a diff and compositionend adds nothing', () => {
+    fire('compositionstart', { data: '' });
+    comp('l');
+    comp('ls');
+    comp('lsx');
+    expect(sent()).toBe('lsx');
+    fire('compositionend', { data: 'lsx' });
+    advance();
+    expect(sent()).toBe('lsx');
+  });
+
+  test('a rewritten composition deletes the changed tail and sends the new one', () => {
+    fire('compositionstart', { data: '' });
+    comp('Ls');
+    bytes = [];
+    comp('LS');
+    expect(sent()).toBe('\x7fS');
+  });
+
+  test('a blur mid-composition writes nothing to the field and sends nothing; typing after refocus is clean', () => {
+    el.focus();
+    fire('compositionstart', { data: '' });
+    comp('ls');
+    bytes = [];
+    el.blur();
+    advance();
+    expect(el.value).toBe('ls');
+    expect(sent()).toBe('');
+    el.focus();
+    advance();
+    expect(el.value).toBe('ls');
+    expect(sent()).toBe('');
+    typeText('x');
+    expect(sent()).toBe('x');
+  });
+});
+
+describe('paste', () => {
+  const paste = (text: string) => {
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', { value: { getData: (k: string) => (k === 'text/plain' ? text : '') } });
+    el.dispatchEvent(ev);
+    return ev;
+  };
+
+  test('pastes through xterm exactly once, keeping line breaks, and empties the field it no longer mirrors', () => {
+    typeText('q');
+    bytes = [];
+    const ev = paste('a\nb');
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('a\rb');
+    expect(el.value).toBe('');
+  });
+
+  test('is bracketed when the application asked for it', () => {
+    writeMode('\x1b[?2004h');
+    paste('hi');
+    expect(sent()).toBe('\x1b[200~hi\x1b[201~');
+  });
+});
+
+describe('keys', () => {
+  test('arrows follow application-cursor mode', () => {
+    press('ArrowUp', 38);
+    expect(sent()).toBe('\x1b[A');
+    writeMode('\x1b[?1h');
+    bytes = [];
+    press('ArrowUp', 38);
+    press('ArrowLeft', 37);
+    expect(sent()).toBe('\x1bOA\x1bOD');
+  });
+
+  test('Tab, Escape and Ctrl+c are sent and prevented; a bare 229 keydown sends nothing', () => {
+    for (const [key, code, init, out] of [['Tab', 9, {}, '\t'], ['Escape', 27, {}, '\x1b'], ['c', 67, { ctrlKey: true }, '\x03']] as const) {
+      bytes = [];
+      const ev = press(key, code, init);
+      expect(ev.defaultPrevented, key).toBe(true);
+      expect(sent(), key).toBe(out);
+    }
+    bytes = [];
+    const ev = press('Unidentified', 229);
+    expect(sent()).toBe('');
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  test('Ctrl+c, like a bar Ctrl-C, empties the field so the next line starts clean', () => {
+    typeText('sleep');
+    press('c', 67, { ctrlKey: true });
+    expect(el.value).toBe('');
+    bytes = [];
+    typeText('a');
+    expect(sent()).toBe('a');
+  });
+
+  test('a printable key without modifiers keeps its default so the character arrives as input', () => {
+    expect(press('a', 65).defaultPrevented).toBe(false);
+  });
+});
+
+describe('construction', () => {
+  test('the proxy is made as a password field, switched to text, with text assistance off before any focus', async () => {
+    touch.dispose();
+    t.dispose();
+    document.body.innerHTML = '';
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    t = new Terminal();
+    t.open(host);
+    const types: (string | null)[] = [];
+    const mo = new MutationObserver((rs) => { for (const r of rs) if (r.attributeName === 'type') types.push(r.oldValue); });
+    mo.observe(t.element!, { subtree: true, attributes: true, attributeOldValue: true });
+    const focuses: Element[] = [];
+    document.addEventListener('focusin', (e) => focuses.push(e.target as Element));
+    touch = attachTouchInput(t);
+    el = t.element!.querySelector<HTMLInputElement>('.xterm-touch-input')!;
+    await Promise.resolve();
+    mo.disconnect();
+    expect(types).toEqual(['password']);
+    expect(el.type).toBe('text');
+    expect(focuses).toEqual([]);
+    for (const [a, v] of [['autocapitalize', 'off'], ['autocorrect', 'off'], ['autocomplete', 'off'], ['spellcheck', 'false']]) {
+      expect(el.getAttribute(a), a).toBe(v);
+    }
+    expect(el.getAttribute('aria-label')).toBe('Terminal input');
+    // Nothing about the field should read as a login to an autofill service or password manager.
+    for (const [a, v] of [['data-bwignore', 'true'], ['data-lpignore', 'true'], ['data-1p-ignore', 'true'], ['data-form-type', 'other'], ['aria-autocomplete', 'none']]) {
+      expect(el.getAttribute(a), a).toBe(v);
+    }
+    expect(el.getAttribute('name')).toBe('terminal-input');
+  });
+});
+
+describe('focus', () => {
+  test('a mousedown on the terminal focuses the proxy, and the textarea is disabled so xterm cannot take focus', () => {
+    t.element!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(el);
+    expect(ta.disabled).toBe(true);
+    t.focus();
+    expect(document.activeElement).not.toBe(ta);
+  });
+
+  test('focus and blur reach xterm: focus class and the focus reports', () => {
+    writeMode('\x1b[?1004h');
+    bytes = []; // xterm reports the current (blurred) state when the mode is enabled
+    el.focus();
+    expect(sent()).toBe('\x1b[I');
+    expect(t.element!.classList.contains('focus')).toBe(true);
+    el.blur();
+    expect(sent()).toBe('\x1b[I\x1b[O');
+    expect(t.element!.classList.contains('focus')).toBe(false);
+  });
+
+  test('attaching while the textarea has focus moves focus to the proxy', () => {
+    touch.dispose();
+    t.dispose();
+    document.body.innerHTML = '';
+    setup({ focusTextarea: true });
+    expect(document.activeElement).toBe(el);
+  });
+
+  test('dispose removes the proxy, re-enables the textarea and returns focus to xterm when the proxy had it', () => {
+    el.focus();
+    touch.dispose();
+    expect(t.element!.querySelector('.xterm-touch-input')).toBeNull();
+    expect(ta.disabled).toBe(false);
+    expect(document.activeElement).toBe(ta);
+    // and typing into the removed proxy no longer sends anything
+    bytes = [];
+    el.value = 'zz';
+    el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: 'z', bubbles: true }));
+    expect(sent()).toBe('');
+    touch = attachTouchInput(t); // afterEach disposes again
+  });
+
+  test('a focus method on the handle focuses the proxy', () => {
+    touch.focus();
+    expect(document.activeElement).toBe(el);
+  });
+});
+
+describe('bytes that reach the shell by another route empty the field', () => {
+  const del = (next: string) => {
+    el.value = next;
+    el.setSelectionRange(next.length, next.length);
+    fire('input', { inputType: 'deleteWordBackward' });
+  };
+
+  test('clear() empties the field and what was sent, so a later word-delete removes only what was typed since', () => {
+    typeText('ls');
+    t.input('-'); // a bar key
+    touch.clear();
+    expect(el.value).toBe('');
+    typeText('la');
+    del('');
+    expect(shellLine()).toBe('ls-');
+  });
+
+  test('paste: a later word-delete cannot reach into the text typed before the paste', () => {
+    typeText('ab');
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', { value: { getData: () => 'XYZ' } });
+    el.dispatchEvent(ev);
+    expect(el.value).toBe('');
+    typeText('c');
+    del('');
+    expect(shellLine()).toBe('abXYZ');
+  });
+
+  test('a control sequence the proxy sends itself (Ctrl+L, arrows, Tab) empties the field; a later insert at caret 0 is not mixed with old text', () => {
+    typeText('ab');
+    press('l', 76, { ctrlKey: true });
+    expect(el.value).toBe('');
+    el.value = 'x';
+    el.setSelectionRange(0, 0); // the logged s=0,0 shape
+    fire('input', { inputType: 'insertText', data: 'x' });
+    expect(sent()).toBe('ab\x0cx');
+    expect(el.value).toBe('x');
+    for (const [k, c] of [['ArrowLeft', 37], ['Tab', 9]] as const) {
+      press(k, c);
+      expect(el.value, k).toBe('');
+      typeText('q');
+    }
+  });
+
+  test('a clear() inside the send of an edit is not undone by that edit', () => {
+    const off = t.onData((d) => { if (d === 'c') touch.clear(); }); // what the pane does for a modified chunk
+    typeText('ab');
+    typeText('c');
+    off.dispose();
+    expect(el.value).toBe('');
+    typeText('d');
+    expect(sent()).toBe('abcd');
+  });
+});
+
+describe('clipboard keys on the proxy', () => {
+  const clip = (code: string, key: string) => press(key, code === 'KeyC' ? 67 : 86, { code, ctrlKey: true, shiftKey: true });
+
+  test('Ctrl+Shift+C copies the selection and sends nothing', () => {
+    // xterm's selection needs a laid-out buffer; the key handler only reads the two accessors.
+    vi.spyOn(t, 'hasSelection').mockReturnValue(true);
+    vi.spyOn(t, 'getSelection').mockReturnValue('hello');
+    typeText('q');
+    bytes = [];
+    const ev = clip('KeyC', 'C');
+    expect(clipboard.writeText).toHaveBeenCalledWith('hello');
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('');
+  });
+
+  test('Ctrl+Shift+V pastes the clipboard text, bracketed when asked, and empties the field', async () => {
+    writeMode('\x1b[?2004h');
+    clipboard.readText.mockResolvedValue('pasted');
+    typeText('q');
+    bytes = [];
+    const ev = clip('KeyV', 'V');
+    await vi.waitFor(() => expect(sent()).toBe('\x1b[200~pasted\x1b[201~'));
+    expect(ev.defaultPrevented).toBe(true);
+    expect(el.value).toBe('');
+  });
+});
+
+describe('dispose', () => {
+  test('hands focus back to xterm without a duplicate focus-in report', () => {
+    writeMode('\x1b[?1004h');
+    bytes = [];
+    el.focus();
+    touch.dispose();
+    expect(sent()).toBe('\x1b[I\x1b[O\x1b[I');
+    expect(t.element!.classList.contains('focus')).toBe(true);
+    touch = attachTouchInput(t, clipboard);
+  });
+
+  test('is safe after the terminal itself was disposed', () => {
+    el.focus();
+    t.dispose();
+    expect(() => touch.dispose()).not.toThrow();
+    t = new Terminal(); // afterEach disposes it
+    touch = attachTouchInput((t.open(document.body), t), clipboard);
+  });
+});
+
+describe('clear() during a composition', () => {
+  const comp = (value: string) => {
+    el.value = value;
+    el.setSelectionRange(value.length, value.length);
+    fire('input', { inputType: 'insertCompositionText', data: value, isComposing: true });
+  };
+
+  test('a bar key mid-composition writes nothing to the field until compositionend, and no composed text is sent twice', () => {
+    fire('compositionstart', { data: '' });
+    comp('に');
+    t.input('-'); // the bar key
+    touch.clear(); // what the pane does after it
+    expect(el.value).toBe('に');
+    comp('にほ');
+    expect(sent()).toBe('に-'); // not mirrored while the clear is pending
+    fire('compositionend', { data: 'にほ' });
+    expect(sent()).toBe('に-ほ'); // only the part beyond what the shell already has
+    expect(el.value).toBe('');
+    typeText('x');
+    expect(shellLine()).toBe('に-ほx');
+  });
+
+  test('a rewritten composition that no longer extends what was sent adds nothing at compositionend', () => {
+    fire('compositionstart', { data: '' });
+    comp('ab');
+    touch.clear();
+    comp('Xb');
+    fire('compositionend', { data: 'Xb' });
+    expect(sent()).toBe('ab');
+    expect(el.value).toBe('');
+  });
+
+  test('an async paste landing mid-composition writes nothing to the field until compositionend', async () => {
+    clipboard.readText.mockResolvedValue('PASTE');
+    press('V', 86, { code: 'KeyV', ctrlKey: true, shiftKey: true });
+    fire('compositionstart', { data: '' }); // the clipboard read is still pending
+    comp('に');
+    await vi.waitFor(() => expect(sent()).toBe('にPASTE'));
+    expect(el.value).toBe('に');
+    fire('compositionend', { data: 'に' });
+    expect(sent()).toBe('にPASTE');
+    expect(el.value).toBe('');
+  });
+
+  test('a blur that ends the composition without compositionend still applies the pending clear', () => {
+    fire('compositionstart', { data: '' });
+    comp('a');
+    touch.clear();
+    el.focus();
+    el.blur();
+    expect(el.value).toBe('');
+    typeText('b');
+    expect(sent()).toBe('ab');
+  });
+});
+
+describe('an unclosed composition (SwiftKey leaves empty ones without compositionend)', () => {
+  // D.S5 ends with three `cs ""`/`cu ""` pairs and no `ce`, then Enter.
+  const beforeEnter = () => {
+    const events = step('D', 'S5').events;
+    return events.slice(0, events.findIndex((e) => e.kind === 'kd' && e.key === 'Enter'));
+  };
+
+  test('a bar key, then non-composing edits and Enter: the clear applies, every typed character reaches the shell, and the line is complete before CR', () => {
+    replay(beforeEnter());
+    expect(shellLine()).toBe('cd..');
+    t.input('-');
+    touch.clear();
+    typeText('x'); // a plain edit ends the stale composition: its text is flushed, then the field is emptied
+    expect(el.value).toBe('');
+    typeText('y');
+    press('Enter', 13);
+    expect(sent().endsWith('-xy\r')).toBe(true);
+    expect(shellLine()).toBe('cd..-xy');
+    expect(el.value).toBe('');
+  });
+
+  test('held composition text is flushed by Enter before the CR, not dropped', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..ab';
+    el.setSelectionRange(6, 6);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    expect(sent().endsWith('-')).toBe(true); // held back while the clear is pending
+    press('Enter', 13);
+    expect(sent().endsWith('-ab\r')).toBe(true);
+  });
+
+  test('a non-composing beforeinput also ends the stale composition', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..q';
+    el.setSelectionRange(6, 6);
+    fire('input', { inputType: 'insertCompositionText', data: 'q', isComposing: true });
+    fire('beforeinput', { inputType: 'insertText', data: 'r', isComposing: false });
+    expect(sent().endsWith('-q')).toBe(true);
+    expect(el.value).toBe('');
+  });
+
+  test('Ctrl+C sent while a clear is pending ends the composition and drops what was held', () => {
+    replay(beforeEnter());
+    t.input('-');
+    touch.clear();
+    el.value = 'cd..zz';
+    fire('input', { inputType: 'insertCompositionText', data: 'zz', isComposing: true });
+    t.input('\x03');
+    expect(el.value).toBe('');
+    bytes = [];
+    typeText('a');
+    expect(sent()).toBe('a');
+  });
+});
+
+describe('key handling edge cases', () => {
+  test('Backspace on a non-empty field is left to the browser: not prevented, nothing sent by the keydown, and the following input diff keeps shell and field equal', () => {
+    typeText('ab');
+    bytes = [];
+    const ev = press('Backspace', 8);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(sent()).toBe('');
+    el.value = 'a';
+    el.setSelectionRange(1, 1);
+    fire('input', { inputType: 'deleteContentBackward' });
+    expect(sent()).toBe('\x7f');
+    expect(el.value).toBe('a');
+  });
+
+  test('Alt plus a character from the proxy itself sends ESC then the character', () => {
+    const ev = press('c', 67, { altKey: true });
+    expect(ev.defaultPrevented).toBe(true);
+    expect(sent()).toBe('\x1bc');
+  });
+
+  test('a keydown flagged isComposing sends nothing even when its keyCode is not 229', () => {
+    typeText('ab');
+    bytes = [];
+    for (const [key, code] of [['Enter', 13], ['Backspace', 8], ['ArrowLeft', 37]] as const) {
+      const ev = press(key, code, { isComposing: true });
+      expect(ev.defaultPrevented, key).toBe(false);
+    }
+    expect(sent()).toBe('');
+    expect(el.value).toBe('ab');
+  });
+
+  test('a composition rewritten to something longer that no longer extends what was sent adds nothing at compositionend', () => {
+    fire('compositionstart', { data: '' });
+    const comp = (v: string) => {
+      el.value = v;
+      el.setSelectionRange(v.length, v.length);
+      fire('input', { inputType: 'insertCompositionText', data: v, isComposing: true });
+    };
+    comp('ab');
+    touch.clear();
+    comp('Xbc');
+    fire('compositionend', { data: 'Xbc' });
+    expect(sent()).toBe('ab');
+    expect(el.value).toBe('');
+  });
+});
+
+describe('the caret stays at the end of the field', () => {
+  const caretAtEnd = () => [el.selectionStart, el.selectionEnd];
+
+  test('A.S7 from the device: abc, the caret drifts to 0 while idle, four Backspaces (three bare 229 pairs, one Backspace key), then d: the shell ends with d and the field is empty', () => {
+    el.focus();
+    const events = parseCaptureLog(S7_LOG)[0].events;
+    const typed = events.findIndex((e) => e.ms === 4937); // ku after the third character
+    replay(events.slice(0, typed + 1));
+    expect(el.value).toBe('abc');
+    const drift = events.find((e) => e.ms === 8118)!; // ku "Unidentified" 229 v="abc" s=0,0, no input event before it
+    expect(drift).toMatchObject({ v: 'abc', s0: 0, s1: 0 });
+    driftCaret(el, 0);
+    for (const code of [229, 229, 229, 8] as const) backspaceKey(el, code);
+    insertAtCaret(el, 'd');
+    expect(el.value).toBe('d');
+    expect(shellLine()).toBe('d');
+    press('Enter', 13);
+    expect(shellLine()).toBe('d');
+    expect(el.value).toBe('');
+  });
+
+  test('a caret that moved without an input event is put back on selectionchange', () => {
+    el.focus();
+    typeText('abc');
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('a 229 keydown puts back a caret that moved without any event', () => {
+    typeText('abc');
+    el.setSelectionRange(1, 1);
+    press('Unidentified', 229);
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('gaining focus puts the caret at the end', () => {
+    typeText('abc');
+    el.blur();
+    el.setSelectionRange(0, 0);
+    el.focus();
+    expect(caretAtEnd()).toEqual([3, 3]);
+  });
+
+  test('during a composition the caret is left alone', () => {
+    el.focus();
+    fire('compositionstart', { data: '' });
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    driftCaret(el, 0);
+    press('Unidentified', 229);
+    expect(caretAtEnd()).toEqual([0, 0]);
+    fire('compositionend', { data: 'ab' });
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([2, 2]);
+  });
+
+  test('after dispose the caret is no longer touched', () => {
+    typeText('abc');
+    touch.dispose();
+    driftCaret(el, 0);
+    expect(caretAtEnd()).toEqual([0, 0]);
+    touch = attachTouchInput(t, clipboard);
+  });
+});
+
+describe('the pin on the non-229 key path', () => {
+  test('a caret that drifted to 0 with no selectionchange is put back by a Backspace key (keyCode 8): the field becomes ab and one DEL is sent', () => {
+    el.focus();
+    typeText('abc');
+    bytes = [];
+    el.setSelectionRange(0, 0); // no event
+    backspaceKey(el, 8);
+    expect(el.value).toBe('ab');
+    expect(sent()).toBe('\x7f');
+  });
+});
+
+describe('bare Backspace (SwiftKey sends most single taps as a keydown/keyup 229 pair with no edit)', () => {
+  const focusProxy = () => { el.focus(); };
+  const pairs = (variant: string, id: string) => {
+    const events = parseCaptureLog(BARE_LOG).find((s) => s.variant === variant && s.id === id)!.events;
+    const found: { kd: LogEvent; ku: LogEvent }[] = [];
+    events.forEach((e, i) => {
+      const next = events[i + 1];
+      if (e.kind === 'kd' && e.keyCode === 229 && next?.kind === 'ku' && next.keyCode === 229) found.push({ kd: e, ku: next });
+    });
+    return found;
+  };
+
+  test('the signature in the device logs: adjacent 229 keydown and keyup, 70 to 160 ms apart, the keyup with the caret at 0', () => {
+    for (const [variant, id, count] of [['A', 'S7', 2], ['A', 'S8', 1], ['J', 'S8', 2]] as const) {
+      const found = pairs(variant, id);
+      expect(found.length, `${variant}.${id}`).toBeGreaterThanOrEqual(count);
+      for (const { kd, ku } of found) {
+        expect(ku.ms - kd.ms).toBeGreaterThanOrEqual(70);
+        expect(ku.ms - kd.ms).toBeLessThanOrEqual(160);
+      }
+    }
+    for (const { ku } of pairs('A', 'S7')) expect(ku).toMatchObject({ s0: 0, s1: 0 });
+  });
+
+  test('S7: abc, four Backspaces (three bare pairs, one Backspace key), then d: the shell ends with d and the field is empty after Enter', () => {
+    focusProxy();
+    typeText('abc');
+    for (let i = 0; i < 3; i++) { bareBackspacePair(el, advance); advance(); vi.advanceTimersByTime(600); }
+    expect(el.value).toBe('');
+    backspaceKey(el, 8); // the fourth press, a real key event, now on an empty field
+    insertAtCaret(el, 'd');
+    expect(shellLine()).toBe('d');
+    press('Enter', 13);
+    expect(shellLine()).toBe('d');
+    expect(el.value).toBe('');
+  });
+
+  test('S8: abc, five seconds idle, two bare Backspaces, Enter: the line is a', () => {
+    focusProxy();
+    typeText('abc');
+    vi.advanceTimersByTime(5000);
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    press('Enter', 13);
+    expect(shellLine()).toBe('a');
+  });
+
+  test('a synthetic DEL keeps the field and the sent-text record equal: the next edit resends nothing, a later word-delete removes only what is there', () => {
+    focusProxy();
+    typeText('abc');
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(100);
+    expect(el.value).toBe('ab');
+    typeText('x');
+    expect(sent()).toBe('abc\x7fx');
+    el.value = '';
+    el.dispatchEvent(new InputEvent('input', { inputType: 'deleteWordBackward', bubbles: true }));
+    expect(shellLine()).toBe('');
+  });
+
+  test('a bare Backspace on an empty field still sends one DEL', () => {
+    focusProxy();
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(100);
+    expect(sent()).toBe('\x7f');
+  });
+
+  test('no double delete: when the browser also deletes right after the pair, only that deletion is sent', () => {
+    focusProxy();
+    typeText('abc');
+    bytes = [];
+    bareBackspacePair(el, advance);
+    // the keyboard's own deletion arrives within the guard
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('\x7f');
+    expect(el.value).toBe('ab');
+  });
+
+  test('a real Backspace key after a bare pair is a separate press and deletes once', () => {
+    focusProxy();
+    typeText('abc');
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    backspaceKey(el, 8);
+    expect(shellLine()).toBe('a');
+    expect(el.value).toBe('a');
+  });
+
+  test('a composition event between the keydown and keyup means it was not a bare pair', () => {
+    focusProxy();
+    typeText('abc');
+    bytes = [];
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+    fire('compositionstart', { data: '' });
+    fire('compositionend', { data: '' });
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    expect(el.value).toBe('abc');
+  });
+
+  test('no DEL while composing', () => {
+    focusProxy();
+    fire('compositionstart', { data: '' });
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    bytes = [];
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    expect(el.value).toBe('ab');
+  });
+
+  test('S10 as the device showed it: abcdef, a held Backspace sends real keyCode-8 events (no bare pairs), Enter: an empty line', () => {
+    focusProxy();
+    typeText('abcdef');
+    for (let i = 0; i < 8; i++) backspaceKey(el, 8); // two more than the field holds
+    expect(el.value).toBe('');
+    press('Enter', 13);
+    expect(shellLine()).toBe('');
+  });
+
+  test('fast repeated bare taps (20 ms apart) each delete one character', () => {
+    focusProxy();
+    typeText('abcdef');
+    for (let i = 0; i < 6; i++) { bareBackspacePair(el, advance, 20); vi.advanceTimersByTime(10); }
+    vi.advanceTimersByTime(600);
+    expect(el.value).toBe('');
+    expect(shellLine()).toBe('');
+  });
+
+  describe('the guard window and the flush are exact', () => {
+    test('the guard really delays the DEL: a browser deletion arriving partway through the window cancels it, giving one deletion and no extra DEL', () => {
+      focusProxy();
+      typeText('abc');
+      bytes = [];
+      bareBackspacePair(el, advance);
+      vi.advanceTimersByTime(20); // inside the 40 ms guard
+      expect(sent()).toBe('');
+      el.value = 'ab';
+      el.setSelectionRange(2, 2);
+      el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f');
+      expect(el.value).toBe('ab');
+    });
+
+    const twoPending = () => {
+      focusProxy();
+      typeText('abcd');
+      bytes = [];
+      bareBackspacePair(el, advance, 10);
+      vi.advanceTimersByTime(5);
+      bareBackspacePair(el, advance, 10); // both timers still pending
+      expect(sent()).toBe('');
+    };
+
+    test('Enter after two pending pairs sends both DELs before the CR and the field drops two characters', () => {
+      twoPending();
+      press('Enter', 13);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f\x7f\r');
+    });
+
+    test('flush() with two pending pairs sends both DELs before the next bytes and drops two characters', () => {
+      twoPending();
+      touch.flush();
+      expect(el.value).toBe('ab');
+      t.input('-');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7f\x7f-');
+    });
+
+    test('Ctrl+Shift+V flushes a pending DEL before the pasted text', async () => {
+      focusProxy();
+      typeText('abc');
+      bytes = [];
+      clipboard.readText.mockResolvedValue('PP');
+      bareBackspacePair(el, advance);
+      press('V', 86, { code: 'KeyV', ctrlKey: true, shiftKey: true });
+      for (let i = 0; i < 6; i++) await Promise.resolve(); // the clipboard read, without advancing any timer
+      expect(sent()).toBe('\x7fPP');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('\x7fPP');
+      expect(el.value).toBe('');
+    });
+  });
+
+  describe('a pending bare DEL never crosses a line or a blur', () => {
+    test('pair then Enter inside the guard: the DEL lands before the CR and nothing follows it', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      press('Enter', 13);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f\r');
+      expect(shellLine()).toBe('ab');
+    });
+
+    test('flush() lands the pending DEL before whatever the host sends next (a bar key, a modified chunk)', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      touch.flush();
+      t.input('-');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f-');
+    });
+
+    test('pair then paste inside the guard: the DEL comes before the pasted text', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      const ev = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'clipboardData', { value: { getData: () => 'PP' } });
+      el.dispatchEvent(ev);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7fPP');
+    });
+
+    test('pair then blur: the DEL is sent at once and no timer fires afterwards', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      el.blur();
+      expect(sent()).toBe('abc\x7f');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f');
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    test('a keydown 229, then blur, then a lone keyup 229 sends no DEL', () => {
+      focusProxy();
+      typeText('abc');
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      el.blur();
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc');
+    });
+
+    test('an Enter that empties the field also forgets an open keydown, so a later keyup cannot pair with it', () => {
+      focusProxy();
+      typeText('abc');
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      press('Enter', 13);
+      bytes = [];
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('');
+    });
+  });
+
+  test('a character typed inside the guard cancels the pending DEL (accepted: fast Backspace-then-type can drop the Backspace; firing would delete the new character instead)', () => {
+    focusProxy();
+    typeText('abc');
+    bareBackspacePair(el, advance);
+    typeText('x');
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('abcx');
+    expect(el.value).toBe('abcx');
+  });
+
+  test('no DEL for any other 229 traffic in the device log: every captured step, with the timers running past the guard after each event, leaves the shell line equal to the field at Enter', () => {
+    let checked = 0;
+    for (const s of parseCaptureLog(LOG).filter((x) => x.verdict !== undefined)) {
+      const enter = [...s.events].reverse().find((e): e is Extract<LogEvent, { key: string }> => e.kind === 'kd' && e.key === 'Enter');
+      if (!enter) continue;
+      touch.dispose();
+      t.dispose();
+      document.body.innerHTML = '';
+      setup();
+      el.focus();
+      replayStep(el, s.events, { advance: () => vi.advanceTimersByTime(200), timers: 'each' });
+      expect(lineText(feedLine(EMPTY_LINE, sent())), `${s.variant}.${s.id}`).toBe(enter.v);
+      checked++;
+    }
+    expect(checked).toBeGreaterThanOrEqual(20);
+  });
+
+  test('dispose cancels a pending synthetic DEL', () => {
+    focusProxy();
+    typeText('abc');
+    bytes = [];
+    bareBackspacePair(el, advance);
+    touch.dispose();
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    touch = attachTouchInput(t, clipboard);
+  });
+});

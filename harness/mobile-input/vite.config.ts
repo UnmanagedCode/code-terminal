@@ -10,5 +10,11 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   resolve: { alias: { '@': path.join(here, '../../frontend/src') } },
-  build: { outDir: path.join(here, 'dist'), emptyOutDir: true },
+  build: {
+    outDir: path.join(here, 'dist'),
+    emptyOutDir: true,
+    rollupOptions: {
+      input: { index: path.join(here, 'index.html'), capture: path.join(here, 'capture.html') },
+    },
+  },
 });

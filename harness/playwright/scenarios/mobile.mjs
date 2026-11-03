@@ -1,5 +1,5 @@
 // A phone-sized touch page: the extra-keys bar, its modifiers and arrows reach the shell,
-// and tapping the bar never moves focus off the terminal's textarea.
+// and tapping the bar never moves focus off the touch-input proxy, which takes the typing.
 import assert from 'node:assert/strict';
 import { newShell, openProject, typeLine, waitText, waitUnwrapped, until } from '../lib.mjs';
 
@@ -12,27 +12,26 @@ export async function run({ page, scratch, shot }) {
   const pane = await newShell(page);
   const bar = pane.getByRole('toolbar', { name: 'Extra keys' });
   await bar.waitFor();
-  const textarea = pane.locator('.xterm-helper-textarea');
+  const proxy = pane.locator('.xterm-touch-input');
   for (const [attr, value] of [['autocapitalize', 'off'], ['autocorrect', 'off'], ['autocomplete', 'off'], ['spellcheck', 'false']]) {
-    assert.equal(await textarea.getAttribute(attr), value, attr);
+    assert.equal(await proxy.getAttribute(attr), value, attr);
   }
+  assert.equal(await pane.locator('.xterm-helper-textarea').isDisabled(), true, 'xterm\'s own textarea is out of the touch path');
   await shot('mobile-1-bar.png');
 
-  // The placeholder keeps the field non-empty, and never reaches the shell.
-  await textarea.focus();
-  const seeded = await textarea.inputValue();
-  assert.notEqual(seeded, '', 'the helper field holds a placeholder');
+  // A tap on the terminal puts focus on the proxy; typed text reaches the shell once.
+  await pane.locator('.xterm-screen').tap();
+  assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-touch-input', 'a tap focuses the proxy');
   await page.keyboard.insertText('echo caps-ok');
   await page.keyboard.press('Enter');
-  await until(async () => (await textarea.inputValue()) === seeded, 'the placeholder back after Enter');
+  await until(async () => (await proxy.inputValue()) === '', 'the proxy emptied after Enter');
   await waitText(pane, /^caps-ok$/m, 'the typed command output');
   assert.doesNotMatch(await pane.innerText(), /command not found/);
 
   const tap = async (name) => {
     await bar.getByRole('button', { name, exact: true }).tap();
-    assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-helper-textarea', `focus stays on the textarea after ${name}`);
+    assert.equal(await page.evaluate(() => document.activeElement?.className), 'xterm-touch-input', `focus stays on the proxy after ${name}`);
   };
-  await textarea.focus();
 
   await typeLine(page, pane, 'sleep 100');
   await tap('Control');
@@ -57,4 +56,13 @@ export async function run({ page, scratch, shot }) {
   await tap('Up arrow');
   await waitText(pane, '^[OA', 'application-cursor Up as ^[OA');
   await shot('mobile-3-app-cursor.png');
+  await page.keyboard.press('Control+u');
+
+  // The proxy's focus and blur reach xterm: DECSET 1004 reports arrive through the disabled textarea.
+  await typeLine(page, pane, "printf '\\e[?1004h'; cat -v");
+  await proxy.evaluate((el) => el.blur());
+  await proxy.focus();
+  await waitText(pane, '^[[O', 'the focus-out report');
+  await waitText(pane, '^[[I', 'the focus-in report');
+  await shot('mobile-4-focus-reports.png');
 }
