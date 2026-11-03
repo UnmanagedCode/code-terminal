@@ -147,14 +147,14 @@ describe('step table and tally', () => {
 
   it('runs S1, S4 and S6 only for variant E', () => {
     expect(VARIANT_STEPS.E).toEqual(['S1', 'S4', 'S6']);
-    expect(VARIANT_STEPS.A).toHaveLength(8);
+    expect(VARIANT_STEPS.A).toHaveLength(10);
     expect(VARIANT_STEPS.B).toHaveLength(6);
   });
 
   it('adds S7 for the shipped variant only: type past the start of the line, then d', () => {
     expect(STEPS.find((s) => s.id === 'S7')!.want).toBe('d');
-    expect(VARIANT_STEPS.A.at(-1)).toBe('S8');
-    expect(VARIANT_STEPS.J).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']);
+    expect(VARIANT_STEPS.A.at(-1)).toBe('S10');
+    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
     expect(STEPS.find((s) => s.id === 'S8')!.want).toBe('a');
     expect(tally(['=A.S7 got="d" want="d" PASS']).A).toBe(1);
   });
@@ -315,6 +315,32 @@ describe('focus result lines', () => {
   });
 });
 
+describe('parsing a trimmed report', () => {
+  it('skips the trim marker lines', () => {
+    const [step] = parseCaptureLog('@A.S7 want="d"\n… 5 earlier events trimmed\n5 ku "Unidentified" "" 229 v="a" s=1,1');
+    expect(step.events).toHaveLength(1);
+  });
+});
+
+describe('bare Backspace variant K and the no-op key steps', () => {
+  it('runs S1 to S10 on A and K', () => {
+    expect(VARIANT_STEPS.K).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10']);
+    expect(VARIANT_STEPS.A).toEqual(VARIANT_STEPS.K);
+  });
+
+  it('S9 expects abc untouched and S10 an empty line', () => {
+    expect(STEPS.find((s) => s.id === 'S9')!.want).toBe('abc');
+    expect(STEPS.find((s) => s.id === 'S10')!.want).toBe('');
+  });
+
+  it('counts, formats and parses two-digit steps and the empty want', () => {
+    expect(tally(['=K.S10 got="" want="" PASS']).K).toBe(1);
+    const [step] = parseCaptureLog('@K.S10 want=""\n=K.S10 got="" want="" PASS');
+    expect(step).toMatchObject({ variant: 'K', id: 'S10', want: '', verdict: 'PASS' });
+    expect(resultLine('K', 'S10', '', '')).toBe('=K.S10 got="" want="" PASS');
+  });
+});
+
 describe('autofill diagnostic variants', () => {
   it('runs F to I like E: S1, S4 and S6 only', () => {
     for (const v of ['F', 'G', 'H', 'I'] as const) expect(VARIANT_STEPS[v]).toEqual(['S1', 'S4', 'S6']);
@@ -333,7 +359,7 @@ describe('autofill diagnostic variants', () => {
 });
 
 describe('empty-field diagnostic variant J', () => {
-  it('runs S1 to S8 like the shipped variant', () => {
-    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A);
+  it('runs S1 to S8, the shipped variant\'s steps up to S8', () => {
+    expect(VARIANT_STEPS.J).toEqual(VARIANT_STEPS.A.slice(0, 8));
   });
 });

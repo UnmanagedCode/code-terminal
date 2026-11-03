@@ -1,0 +1,68 @@
+@A.S7 want="d"
+… 5 earlier events trimmed
+1966 ku "Unidentified" "" 229 v="a" s=1,1
+2075 kd "Unidentified" "" 229 v="a" s=1,1
+2132 bi "insertText" "b" c0 v="a" s=1,1
+2181 in "insertText" "b" c0 v="ab" s=0,0
+2190 tx "b"
+2314 ku "Unidentified" "" 229 v="ab" s=2,2
+2616 kd "Unidentified" "" 229 v="ab" s=2,2
+2692 bi "insertText" "c" c0 v="ab" s=2,2
+2741 in "insertText" "c" c0 v="abc" s=0,0
+2749 tx "c"
+2846 ku "Unidentified" "" 229 v="abc" s=3,3
+8162 kd "Unidentified" "" 229 v="abc" s=3,3
+8273 ku "Unidentified" "" 229 v="abc" s=0,0
+8396 ~ v="abc" s=3,3
+8979 kd "Unidentified" "" 229 v="abc" s=3,3
+9063 ku "Unidentified" "" 229 v="abc" s=0,0
+9171 ~ v="abc" s=3,3
+9982 kd "Unidentified" "" 229 v="abc" s=3,3
+10070 ku "Unidentified" "" 229 v="abc" s=0,0
+10182 ~ v="abc" s=3,3
+10988 kd "Backspace" "" 8 v="abc" s=3,3
+11085 bi "deleteContentBackward" null c0 v="abc" s=3,3
+11146 in "deleteContentBackward" null c0 v="ab" s=2,2
+11155 tx "\u007f"
+11210 ku "Backspace" "" 8 v="ab" s=2,2
+13481 kd "Unidentified" "" 229 v="ab" s=2,2
+13612 bi "insertText" "d" c0 v="ab" s=2,2
+13677 in "insertText" "d" c0 v="abd" s=0,0
+13686 tx "d"
+13860 ku "Unidentified" "" 229 v="abd" s=3,3
+17576 kd "Enter" "" 13 v="abd" s=3,3
+17693 tx "\r"
+17761 ku "Enter" "" 13 v="" s=0,0
+=A.S7 got="abd" want="d" FAIL
+@A.S8 want="a"
+… 17 earlier events trimmed
+16586 ku "Unidentified" "" 229 v="abc" s=0,0
+16791 ~ v="abc" s=3,3
+17052 kd "Unidentified" "" 229 v="abc" s=3,3
+17155 ku "Unidentified" "" 229 v="abc" s=0,0
+17333 ~ v="abc" s=3,3
+18673 kd "Unidentified" "" 229 v="abc" s=3,3
+18824 bi "insertText" "a" c0 v="abc" s=3,3
+18898 in "insertText" "a" c0 v="abca" s=0,0
+18909 tx "a"
+19072 ku "Unidentified" "" 229 v="abca" s=4,4
+31343 kd "Enter" "" 13 v="abca" s=4,4
+31515 tx "\r"
+31653 ku "Enter" "" 13 v="" s=0,0
+=A.S8 got="abca" want="a" FAIL
+@J.S8 want="a"
+… 10 earlier events trimmed
+5512 ku "Unidentified" "" 229 v="" s=0,0
+5604 kd "Unidentified" "" 229 v="" s=0,0
+5687 bi "insertText" "c" c0 v="" s=0,0
+5768 in "insertText" "c" c0 v="c" s=0,0
+5782 tx "c"
+5877 ku "Unidentified" "" 229 v="" s=0,0
+15139 kd "Unidentified" "" 229 v="" s=0,0
+15296 ku "Unidentified" "" 229 v="" s=0,0
+15794 kd "Unidentified" "" 229 v="" s=0,0
+15917 ku "Unidentified" "" 229 v="" s=0,0
+17931 kd "Enter" "" 13 v="" s=0,0
+17997 tx "\r"
+18091 ku "Enter" "" 13 v="" s=0,0
+=J.S8 got="abc" want="a" FAIL

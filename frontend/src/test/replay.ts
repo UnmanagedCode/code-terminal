@@ -82,3 +82,13 @@ export function backspaceKey(el: HTMLInputElement, keyCode: 229 | 8): void {
   if (!down.defaultPrevented) deleteBackward(el);
   el.dispatchEvent(new KeyboardEvent('keyup', { key: down.key, keyCode, bubbles: true } as KeyboardEventInit));
 }
+
+// SwiftKey's Backspace on this device is mostly a bare pair: keydown 229, about 100 ms later keyup
+// 229 with the caret moved to 0, and no beforeinput, input or composition event between. Nothing is
+// deleted. `advance` runs the fake timers across the key's hold time.
+export function bareBackspacePair(el: HTMLInputElement, advance: (ms: number) => void, holdMs = 100): void {
+  el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true, cancelable: true } as KeyboardEventInit));
+  advance(holdMs);
+  driftCaret(el, 0);
+  el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+}

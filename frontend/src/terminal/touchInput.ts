@@ -34,9 +34,16 @@ export interface TouchInputOptions {
   // edit, so the keyboard's view of the field (empty, caret 0) matches it. A composition is emptied
   // when it ends, never during it.
   emptyField?: boolean;
+  // Diagnostic (capture page variant K): SwiftKey sends most Backspaces as a bare keydown/keyup
+  // 229 pair with no edit between (and moves the caret to 0), deleting nothing. Treat such a pair
+  // as a Backspace: send one DEL and drop the last character from the field and the sent-text record.
+  bareBackspace?: boolean;
 }
 
-export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard, { emptyField = false }: TouchInputOptions = {}): TouchInput {
+// How long after the keyup an edit event may still show the browser did delete, so none is repeated.
+const BARE_GUARD_MS = 40;
+
+export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigator.clipboard, { emptyField = false, bareBackspace = false }: TouchInputOptions = {}): TouchInput {
   const { textarea, element } = t;
   if (!textarea || !element) throw new Error('xterm has no helper textarea; call after open()');
 
@@ -102,6 +109,35 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     const len = el.value.length;
     if (el.selectionStart !== len || el.selectionEnd !== len) el.setSelectionRange(len, len);
   };
+  // Bare-pair detection: between a 229 keydown and its keyup nothing edited the field.
+  let pairOpen = false;
+  let pairEdited = false;
+  const pending = new Set<ReturnType<typeof setTimeout>>();
+  const cancelPending = () => { for (const id of pending) clearTimeout(id); pending.clear(); };
+  const noteEdit = () => {
+    pairEdited = true;
+    cancelPending(); // the browser deleted (or composed) after all
+  };
+  const applyBare = () => {
+    if (composing || pendingClear) return;
+    send(DEL);
+    const chars = [...el.value];
+    if (chars.length === 0) return;
+    chars.pop();
+    const next = chars.join('');
+    el.value = next;
+    last = next;
+    pin();
+  };
+  const onKeyUp = (e: Event) => {
+    const k = e as KeyboardEvent;
+    if (k.keyCode !== 229 || k.isComposing) return;
+    const bare = pairOpen && !pairEdited;
+    pairOpen = false;
+    if (!bare || composing || pendingClear) return;
+    const id = setTimeout(() => { pending.delete(id); applyBare(); }, BARE_GUARD_MS);
+    pending.add(id);
+  };
   const send = (s: string) => { if (s) t.input(s); };
   const onInput = (e: Event) => {
     if (!(e as InputEvent).isComposing) {
@@ -136,7 +172,11 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   const onKeyDown = (e: Event) => {
     const k = e as KeyboardEvent;
     if (k.isComposing || k.keyCode === 229) {
-      if (!k.isComposing) pin();
+      if (!k.isComposing) {
+        pin();
+        pairOpen = true;
+        pairEdited = false;
+      }
       return;
     }
     endStale(); // flush held composition text before the key's own bytes
@@ -188,7 +228,14 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     [el, 'keydown', onKeyDown],
     [el, 'paste', onPaste],
     [el, 'focus', onFocus],
-    [el, 'compositionstart', () => { composing = true; }],
+    ...(bareBackspace ? ([
+      [el, 'keyup', onKeyUp],
+      [el, 'beforeinput', noteEdit],
+      [el, 'input', noteEdit],
+      [el, 'compositionupdate', noteEdit],
+      [el, 'compositionend', noteEdit],
+    ] as [EventTarget, string, (e: Event) => void][]) : []),
+    [el, 'compositionstart', () => { composing = true; noteEdit(); }],
     [el, 'compositionend', endComposition],
     [el, 'blur', onBlur],
     [element, 'mousedown', onMouseDown],
@@ -216,6 +263,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     dispose() {
       // After `t.dispose()` (unmount order allows it) xterm's element is gone: only drop our own state.
       const alive = element.isConnected;
+      cancelPending();
       const hadFocus = alive && document.activeElement === el;
       for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
       offData.dispose();

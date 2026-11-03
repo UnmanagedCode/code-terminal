@@ -1,8 +1,8 @@
 // Pure formatting and line model for the SwiftKey event-capture page: no DOM or xterm imports.
 // Every record is one line; every string is JSON-escaped so the log pastes back losslessly.
 
-export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J';
-export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8';
+export type VariantId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K';
+export type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8' | 'S9' | 'S10';
 export type Verdict = 'PASS' | 'TRAIL' | 'FAIL';
 export type Answer = 'yes' | 'no' | '?';
 
@@ -17,10 +17,14 @@ export const STEPS: { id: StepId; want: string }[] = [
   { id: 'S7', want: 'd' },
   // Type abc, wait about 5 s untouched, Backspace twice, then Enter.
   { id: 'S8', want: 'a' },
+  // Type abc, then tap shift, ?123 and back, open and close the emoji panel, swipe the spacebar, Enter.
+  { id: 'S9', want: 'abc' },
+  // Type abcdef, hold Backspace until the field is visibly empty, then Enter.
+  { id: 'S10', want: '' },
 ];
 
 export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
-  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
+  A: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10'],
   B: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   C: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
   D: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
@@ -32,6 +36,8 @@ export const VARIANT_STEPS: Record<VariantId, StepId[]> = {
   I: ['S1', 'S4', 'S6'],
   // The shipped input with the field kept empty (see touchInput's `emptyField`).
   J: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
+  // The shipped input plus bare-Backspace handling (see touchInput's `bareBackspace`).
+  K: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10'],
 };
 
 const DEL = '\x7f';
@@ -136,7 +142,7 @@ export function xfResult(lines: readonly string[], variant: VariantId): { focus:
   const out: { focus: boolean | null; blur: boolean | null } = { focus: null, blur: null };
   let current: string | null = null;
   for (const line of lines) {
-    const v = /^#var ([A-J]) /.exec(line);
+    const v = /^#var ([A-K]) /.exec(line);
     if (v) { current = v[1]; continue; }
     if (current !== variant) continue;
     const m = /^\d+ (fo|bl) .* xf=([01])$/.exec(line);
@@ -153,7 +159,7 @@ export const obsLine = (id: VariantId, strip: Answer, caps: Answer, fill: Answer
   `!${id} strip=${strip} caps=${caps} fill=${fill} save=${save}`;
 
 // Done steps per variant: distinct steps with a `=` result line, so a redo is counted once.
-const RESULT = /^=([A-J])\.(S[1-8]) /;
+const RESULT = /^=([A-K])\.(S\d+) /;
 export function tally(lines: readonly string[]): Record<VariantId, number> {
   const done = new Map<VariantId, Set<StepId>>();
   for (const line of lines) {
@@ -191,8 +197,8 @@ export interface LogStep {
 }
 
 const TOKEN = /(?:v=)?"(?:[^"\\]|\\.)*"|\S+/g;
-const START = /^@([A-J])\.(S[1-8]) (?:want=(".*")|redo)$/;
-const RESULT_LINE = /^=([A-J])\.(S[1-8]) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
+const START = /^@([A-K])\.(S\d+) (?:want=(".*")|redo)$/;
+const RESULT_LINE = /^=([A-K])\.(S\d+) got=(".*") want=(".*") (PASS|TRAIL|FAIL)$/;
 
 function parseEvent(line: string): LogEvent {
   const tokens = line.match(TOKEN) ?? [];
@@ -234,7 +240,7 @@ export function parseCaptureLog(text: string): LogStep[] {
   const steps: LogStep[] = [];
   let cur: LogStep | undefined;
   for (const line of text.split('\n')) {
-    if (line === '' || line[0] === '#' || line[0] === '!') continue;
+    if (line === '' || line[0] === '#' || line[0] === '!' || line[0] === '…') continue;
     if (line[0] === '@') {
       const m = START.exec(line);
       if (!m) throw new Error(`malformed step line: ${line}`);

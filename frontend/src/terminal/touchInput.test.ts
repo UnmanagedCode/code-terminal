@@ -3,9 +3,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Terminal } from '@xterm/xterm';
 import { EMPTY_LINE, feedLine, lineText, parseCaptureLog, type LogEvent } from '../../../harness/mobile-input/captureLog';
-import { backspaceKey, driftCaret, insertAtCaret, replayStep } from '../test/replay';
+import { backspaceKey, bareBackspacePair, driftCaret, insertAtCaret, replayStep } from '../test/replay';
 import LOG from './fixtures/swiftkey-capture-log.txt?raw';
 import S7_LOG from './fixtures/swiftkey-s7-log.txt?raw';
+import BARE_LOG from './fixtures/swiftkey-bare-backspace-log.txt?raw';
 import { attachTouchInput } from './touchInput';
 
 const STEPS = parseCaptureLog(LOG).filter((s) => s.verdict !== undefined);
@@ -19,7 +20,7 @@ let touch: ReturnType<typeof attachTouchInput>;
 
 let clipboard: { writeText: ReturnType<typeof vi.fn<() => Promise<void>>>; readText: ReturnType<typeof vi.fn<() => Promise<string>>> };
 
-function setup(opts: { focusTextarea?: boolean; emptyField?: boolean } = {}) {
+function setup(opts: { focusTextarea?: boolean; emptyField?: boolean; bareBackspace?: boolean } = {}) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   t = new Terminal();
@@ -29,7 +30,7 @@ function setup(opts: { focusTextarea?: boolean; emptyField?: boolean } = {}) {
   bytes = [];
   t.onData((d) => bytes.push(d));
   clipboard = { writeText: vi.fn(() => Promise.resolve()), readText: vi.fn(() => Promise.resolve('')) };
-  touch = attachTouchInput(t, clipboard, { emptyField: opts.emptyField });
+  touch = attachTouchInput(t, clipboard, { emptyField: opts.emptyField, bareBackspace: opts.bareBackspace });
   el = t.element!.querySelector<HTMLInputElement>('.xterm-touch-input')!;
 }
 
@@ -773,5 +774,173 @@ describe('empty-field mode (diagnostic variant J)', () => {
   test('the shipped mode keeps its text after an edit (only J empties)', () => {
     typeText('a');
     expect(el.value).toBe('a');
+  });
+});
+
+describe('bare Backspace (diagnostic variant K)', () => {
+  const kMode = () => {
+    touch.dispose();
+    t.dispose();
+    document.body.innerHTML = '';
+    setup({ bareBackspace: true });
+    el.focus();
+  };
+  const pairs = (variant: string, id: string) => {
+    const events = parseCaptureLog(BARE_LOG).find((s) => s.variant === variant && s.id === id)!.events;
+    const found: { kd: LogEvent; ku: LogEvent }[] = [];
+    events.forEach((e, i) => {
+      const next = events[i + 1];
+      if (e.kind === 'kd' && e.keyCode === 229 && next?.kind === 'ku' && next.keyCode === 229) found.push({ kd: e, ku: next });
+    });
+    return found;
+  };
+
+  test('the signature in the device logs: adjacent 229 keydown and keyup, 70 to 160 ms apart, the keyup with the caret at 0', () => {
+    for (const [variant, id, count] of [['A', 'S7', 2], ['A', 'S8', 1], ['J', 'S8', 2]] as const) {
+      const found = pairs(variant, id);
+      expect(found.length, `${variant}.${id}`).toBeGreaterThanOrEqual(count);
+      for (const { kd, ku } of found) {
+        expect(ku.ms - kd.ms).toBeGreaterThanOrEqual(70);
+        expect(ku.ms - kd.ms).toBeLessThanOrEqual(160);
+      }
+    }
+    for (const { ku } of pairs('A', 'S7')) expect(ku).toMatchObject({ s0: 0, s1: 0 });
+  });
+
+  test('S7: abc, four Backspaces (three bare pairs, one Backspace key), then d: the shell ends with d and the field is empty after Enter', () => {
+    kMode();
+    typeText('abc');
+    for (let i = 0; i < 3; i++) { bareBackspacePair(el, advance); advance(); vi.advanceTimersByTime(600); }
+    expect(el.value).toBe('');
+    backspaceKey(el, 8); // the fourth press, a real key event, now on an empty field
+    insertAtCaret(el, 'd');
+    expect(shellLine()).toBe('d');
+    press('Enter', 13);
+    expect(shellLine()).toBe('d');
+    expect(el.value).toBe('');
+  });
+
+  test('S8: abc, five seconds idle, two bare Backspaces, Enter: the line is a', () => {
+    kMode();
+    typeText('abc');
+    vi.advanceTimersByTime(5000);
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    press('Enter', 13);
+    expect(shellLine()).toBe('a');
+  });
+
+  test('a synthetic DEL keeps the field and the sent-text record equal: the next edit resends nothing, a later word-delete removes only what is there', () => {
+    kMode();
+    typeText('abc');
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(100);
+    expect(el.value).toBe('ab');
+    typeText('x');
+    expect(sent()).toBe('abc\x7fx');
+    el.value = '';
+    el.dispatchEvent(new InputEvent('input', { inputType: 'deleteWordBackward', bubbles: true }));
+    expect(shellLine()).toBe('');
+  });
+
+  test('a bare Backspace on an empty field still sends one DEL', () => {
+    kMode();
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(100);
+    expect(sent()).toBe('\x7f');
+  });
+
+  test('no double delete: when the browser also deletes right after the pair, only that deletion is sent', () => {
+    kMode();
+    typeText('abc');
+    bytes = [];
+    bareBackspacePair(el, advance);
+    // the keyboard's own deletion arrives within the guard
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('\x7f');
+    expect(el.value).toBe('ab');
+  });
+
+  test('a real Backspace key after a bare pair is a separate press and deletes once', () => {
+    kMode();
+    typeText('abc');
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    backspaceKey(el, 8);
+    expect(shellLine()).toBe('a');
+    expect(el.value).toBe('a');
+  });
+
+  test('a composition event between the keydown and keyup means it was not a bare pair', () => {
+    kMode();
+    typeText('abc');
+    bytes = [];
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+    fire('compositionstart', { data: '' });
+    fire('compositionend', { data: '' });
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    expect(el.value).toBe('abc');
+  });
+
+  test('no DEL while composing', () => {
+    kMode();
+    fire('compositionstart', { data: '' });
+    el.value = 'ab';
+    el.setSelectionRange(2, 2);
+    fire('input', { inputType: 'insertCompositionText', data: 'ab', isComposing: true });
+    bytes = [];
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    expect(el.value).toBe('ab');
+  });
+
+  test('S10: abcdef, a held Backspace (a run of bare pairs), Enter: an empty line', () => {
+    kMode();
+    typeText('abcdef');
+    for (let i = 0; i < 8; i++) { bareBackspacePair(el, advance, 20); vi.advanceTimersByTime(10); }
+    vi.advanceTimersByTime(600);
+    expect(el.value).toBe('');
+    press('Enter', 13);
+    expect(shellLine()).toBe('');
+  });
+
+  test('no DEL for any other 229 traffic in the device log: every captured step sends the same bytes with the feature on and off', () => {
+    const full = parseCaptureLog(LOG).filter((s) => s.verdict !== undefined);
+    const run = (on: boolean, events: readonly LogEvent[]) => {
+      touch.dispose();
+      t.dispose();
+      document.body.innerHTML = '';
+      setup({ bareBackspace: on });
+      el.focus();
+      replayStep(el, events, { advance: () => vi.advanceTimersByTime(200), timers: 'each' });
+      return sent();
+    };
+    let checked = 0;
+    for (const s of full) {
+      expect(run(true, s.events), `${s.variant}.${s.id}`).toBe(run(false, s.events));
+      checked++;
+    }
+    expect(checked).toBe(27);
+  });
+
+  test('without the option a bare pair does nothing (the shipped input)', () => {
+    typeText('abc');
+    bytes = [];
+    bareBackspacePair(el, advance); vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    expect(el.value).toBe('abc');
+  });
+
+  test('dispose cancels a pending synthetic DEL', () => {
+    kMode();
+    typeText('abc');
+    bytes = [];
+    bareBackspacePair(el, advance);
+    touch.dispose();
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('');
+    touch = attachTouchInput(t, clipboard);
   });
 });

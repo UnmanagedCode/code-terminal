@@ -54,6 +54,8 @@ interface Setup {
   touchInput?: boolean;
   // Diagnostic: the touch input keeps its field empty after every committed edit.
   emptyField?: boolean;
+  // Diagnostic: a bare 229 keydown/keyup pair is treated as a Backspace.
+  bareBackspace?: boolean;
   inputmode?: string;
   // How a plain input (kind `input`) is treated beyond E's create-as-password-then-text:
   // `optout` the shipped attribute set, `nope` an unrecognized autocomplete token, `late` the
@@ -64,6 +66,7 @@ interface Setup {
 const SETUP: Record<VariantId, Setup> = {
   A: { kind: 'xterm', touchInput: true, question: 'Shipped: touch input, a hidden input built like E. Expect no suggestion strip and no capitals.' },
   J: { kind: 'xterm', touchInput: true, emptyField: true, question: 'Diagnostic: the shipped touch input, but its field is kept empty after every edit. Do all steps pass, S7 and S8 included?' },
+  K: { kind: 'xterm', touchInput: true, bareBackspace: true, question: 'Diagnostic: the shipped touch input, plus a bare Backspace key pair sends a DEL. Do S7, S8, S9 and S10 all pass?' },
   B: { kind: 'xterm', question: 'Diagnostic: xterm textarea with the text-assist attributes only.' },
   C: { kind: 'xterm', inputmode: 'email', question: 'Attributes plus inputmode=email. Do suggestions, autospace and caps stop?' },
   D: { kind: 'xterm', inputmode: 'url', question: 'Attributes plus inputmode=url. The same question for the URL type.' },
@@ -152,7 +155,7 @@ function Page() {
       disableTextAssist(ta);
       if (setup.inputmode) ta.setAttribute('inputmode', setup.inputmode);
       if (setup.touchInput) {
-        touch = attachTouchInput(term, undefined, { emptyField: setup.emptyField });
+        touch = attachTouchInput(term, undefined, { emptyField: setup.emptyField, bareBackspace: setup.bareBackspace });
         field = host.querySelector<HTMLInputElement>('.xterm-touch-input')!;
       } else field = ta;
     } else {
@@ -424,6 +427,10 @@ function Page() {
         ) : (
           current === 'S7' ? (
             <>Type <code>abc</code>, press Backspace 4 times (one too many), type <code>d</code>, then Enter.</>
+          ) : current === 'S9' ? (
+            <>Type <code>abc</code>, then tap shift, tap ?123 and back, open and close the emoji panel, and swipe the spacebar. Then Enter. Nothing should be deleted: expect <code>abc</code>.</>
+          ) : current === 'S10' ? (
+            <>Type <code>abcdef</code>, hold Backspace until the field is visibly empty, then Enter. Expect an empty line.</>
           ) : current === 'S8' ? (
             <>Type <code>abc</code>, then leave the screen untouched for about 5 seconds, press Backspace twice, then Enter. Expect <code>a</code>.</>
           ) : (
