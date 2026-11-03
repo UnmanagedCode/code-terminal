@@ -64,6 +64,14 @@ describe('touch scrolling', () => {
     expect(calls).toEqual([1]);
   });
 
+  test('a fractional remainder carries across a scrollLines call (the accumulator is not zeroed)', () => {
+    touch('touchstart', [100]);
+    touch('touchmove', [100 - 1.5 * CELL]);
+    expect(calls).toEqual([1]);
+    touch('touchmove', [100 - 2 * CELL]);
+    expect(calls).toEqual([1, 1]);
+  });
+
   test('a second finger stops scrolling until all fingers lift; then a new gesture works', () => {
     touch('touchstart', [100]);
     touch('touchstart', [100, 200]);

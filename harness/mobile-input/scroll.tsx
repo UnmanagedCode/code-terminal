@@ -28,7 +28,7 @@ const STEPS = [
   { id: 'S4', text: 'Tap the terminal: the keyboard opens. Type ls, Backspace once (a single tap), Enter. The echo below shows ls, then \\x7f, then \\r in order.' },
   { id: 'S5', text: 'With the keyboard open, swipe the terminal. It scrolls, nothing reloads and the keyboard stays open.' },
   { id: 'S6', text: 'Swipe the keyboard spacebar left and right: the echo shows \\x1b[D and \\x1b[C.' },
-  { id: 'S7', text: 'Pinch with two fingers over the terminal. Note whether the page zooms (put it in the note). Nothing reloads and the terminal does not scroll.' },
+  { id: 'S7', text: 'Pinch with two fingers over the terminal. Note whether the page zooms (put it in the note). Nothing reloads and the terminal does not scroll. Then OBSERVE a two-finger vertical drag downward over the terminal (pinch-zoom still permits multi-finger panning): put in the note whether it reloads.' },
   { id: 'S8', text: 'OBSERVATION: swipe down on the strip above the terminal (title bar). PASS = it reloads (not fixed here), FAIL = it does not.' },
 ];
 
@@ -102,8 +102,8 @@ function Page() {
       </div>
       <div className="hint">Terminal (strip above it is the title bar)</div>
       <div className="strip" style={{ padding: 8, background: '#ddd' }}>title bar</div>
-      <div className="term">
-        <div ref={host} style={{ height: '100%' }} />
+      <div className="term" style={{ height: 'auto' }}>
+        <div ref={host} />
       </div>
       <h2>Echo (bytes sent, in order)</h2>
       <pre>{echo}</pre>
