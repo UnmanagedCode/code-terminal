@@ -93,6 +93,13 @@ export function TerminalPane({ checkout, pane, focused, onFocus, onSplit, onClos
       return { cols: t.cols, rows: t.rows };
     };
     t.onData((d) => {
+      // A pending bare-Backspace DEL goes out first, so it lands before these bytes.
+      touchInput.current?.flush();
+      if (touchInput.current?.sendingBare) {
+        // The synthetic DEL is not a keystroke: no modifier applies to it, and an armed one stays armed.
+        conn.current?.sendInput(d);
+        return;
+      }
       const out = mods.apply(d);
       // A modifier changed the bytes, so the touch field no longer matches the shell line.
       if (out !== d) touchInput.current?.clear();

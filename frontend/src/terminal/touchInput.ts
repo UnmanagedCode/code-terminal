@@ -20,6 +20,12 @@ const NAMED_KEY: Record<string, ExtraKeyId> = {
 
 export interface TouchInput {
   focus(): void;
+  // Send any pending bare-Backspace DEL now. The host calls it before sending other bytes, so the
+  // Backspace lands in order (before a CR or a bar key) instead of after the guard.
+  flush(): void;
+  // True while that DEL is being sent: the host must send it unmodified (an armed Alt would turn
+  // it into ESC DEL) and leave the modifier armed for the next real key.
+  readonly sendingBare: boolean;
   // Forget the field: call when bytes reached the shell by any route other than this input's own
   // insert/delete diff, so a later edit never deletes more than was typed since.
   clear(): void;
@@ -66,6 +72,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   const wipe = () => {
     el.value = '';
     last = '';
+    pairOpen = false; // a keydown whose keyup never came must not pair with a later keyup
   };
   const clear = () => {
     if (composing) pendingClear = true;
@@ -106,9 +113,11 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     pairEdited = true;
     cancelPending(); // the browser deleted (or composed) after all
   };
+  let sendingBare = false;
   const applyBare = () => {
     if (composing || pendingClear) return;
-    send(DEL);
+    sendingBare = true;
+    try { send(DEL); } finally { sendingBare = false; }
     const chars = [...el.value];
     if (chars.length === 0) return;
     chars.pop();
@@ -116,6 +125,12 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     el.value = next;
     last = next;
     pin();
+  };
+  // Pending DELs go out now, in order. Timers are cleared first, so a DEL sent here cannot flush again.
+  const flushPending = () => {
+    const n = pending.size;
+    cancelPending();
+    for (let i = 0; i < n; i++) applyBare();
   };
   const onKeyUp = (e: Event) => {
     const k = e as KeyboardEvent;
@@ -168,7 +183,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     }
     endStale(); // flush held composition text before the key's own bytes
     pin(); // a caret moved without an event must be back at the end before the default action runs
-    if (handleClipboardKey(t, k, clipboard, clear)) {
+    if (handleClipboardKey(t, k, clipboard, { before: flushPending, after: clear })) {
       k.preventDefault();
       return;
     }
@@ -181,6 +196,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
     }
     if (out === null) return;
     k.preventDefault();
+    flushPending();
     t.input(out);
     clear();
   };
@@ -188,6 +204,7 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   const onPaste = (e: Event) => {
     e.preventDefault();
     e.stopPropagation(); // xterm also listens for paste on its element
+    flushPending();
     t.paste((e as ClipboardEvent).clipboardData?.getData('text/plain') ?? '');
     clear();
   };
@@ -204,6 +221,9 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
   const relayBlur = relay('blur');
   // An IME may cancel a composition on blur without `compositionend`; stuck state would block clears.
   const onBlur = () => {
+    // Never let a DEL fire after blur: a background tab throttles timers to seconds.
+    flushPending();
+    pairOpen = false;
     relayBlur();
     if (composing) endComposition();
   };
@@ -244,6 +264,8 @@ export function attachTouchInput(t: Terminal, clipboard: ClipboardLike = navigat
 
   return {
     focus: () => { el.focus({ preventScroll: true }); },
+    flush: flushPending,
+    get sendingBare() { return sendingBare; },
     clear,
     dispose() {
       // After `t.dispose()` (unmount order allows it) xterm's element is gone: only drop our own state.

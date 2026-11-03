@@ -827,14 +827,97 @@ describe('bare Backspace (SwiftKey sends most single taps as a keydown/keyup 229
     expect(el.value).toBe('ab');
   });
 
-  test('S10: abcdef, a held Backspace (a run of bare pairs), Enter: an empty line', () => {
+  test('S10 as the device showed it: abcdef, a held Backspace sends real keyCode-8 events (no bare pairs), Enter: an empty line', () => {
     focusProxy();
     typeText('abcdef');
-    for (let i = 0; i < 8; i++) { bareBackspacePair(el, advance, 20); vi.advanceTimersByTime(10); }
-    vi.advanceTimersByTime(600);
+    for (let i = 0; i < 8; i++) backspaceKey(el, 8); // two more than the field holds
     expect(el.value).toBe('');
     press('Enter', 13);
     expect(shellLine()).toBe('');
+  });
+
+  test('fast repeated bare taps (20 ms apart) each delete one character', () => {
+    focusProxy();
+    typeText('abcdef');
+    for (let i = 0; i < 6; i++) { bareBackspacePair(el, advance, 20); vi.advanceTimersByTime(10); }
+    vi.advanceTimersByTime(600);
+    expect(el.value).toBe('');
+    expect(shellLine()).toBe('');
+  });
+
+  describe('a pending bare DEL never crosses a line or a blur', () => {
+    test('pair then Enter inside the guard: the DEL lands before the CR and nothing follows it', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      press('Enter', 13);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f\r');
+      expect(shellLine()).toBe('ab');
+    });
+
+    test('flush() lands the pending DEL before whatever the host sends next (a bar key, a modified chunk)', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      touch.flush();
+      t.input('-');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f-');
+    });
+
+    test('pair then paste inside the guard: the DEL comes before the pasted text', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      const ev = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'clipboardData', { value: { getData: () => 'PP' } });
+      el.dispatchEvent(ev);
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7fPP');
+    });
+
+    test('pair then blur: the DEL is sent at once and no timer fires afterwards', () => {
+      focusProxy();
+      typeText('abc');
+      bareBackspacePair(el, advance);
+      el.blur();
+      expect(sent()).toBe('abc\x7f');
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc\x7f');
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    test('a keydown 229, then blur, then a lone keyup 229 sends no DEL', () => {
+      focusProxy();
+      typeText('abc');
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      el.blur();
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('abc');
+    });
+
+    test('an Enter that empties the field also forgets an open keydown, so a later keyup cannot pair with it', () => {
+      focusProxy();
+      typeText('abc');
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      press('Enter', 13);
+      bytes = [];
+      el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Unidentified', keyCode: 229, bubbles: true } as KeyboardEventInit));
+      vi.advanceTimersByTime(600);
+      expect(sent()).toBe('');
+    });
+  });
+
+  test('a character typed inside the guard cancels the pending DEL (accepted: fast Backspace-then-type can drop the Backspace; firing would delete the new character instead)', () => {
+    focusProxy();
+    typeText('abc');
+    bareBackspacePair(el, advance);
+    typeText('x');
+    vi.advanceTimersByTime(600);
+    expect(sent()).toBe('abcx');
+    expect(el.value).toBe('abcx');
   });
 
   test('no DEL for any other 229 traffic in the device log: every captured step, with the timers running past the guard after each event, leaves the shell line equal to the field at Enter', () => {

@@ -211,6 +211,50 @@ describe('TerminalPane', () => {
       expect(sendInput).toHaveBeenLastCalledWith('\x1bOA');
     });
 
+    describe('the synthetic Backspace of a bare 229 pair', () => {
+      const proxy = () => document.querySelector<HTMLInputElement>('.xterm-touch-input')!;
+      const bare = () => {
+        fireEvent.keyDown(proxy(), { key: 'Unidentified', keyCode: 229 });
+        fireEvent.keyUp(proxy(), { key: 'Unidentified', keyCode: 229 });
+      };
+      const typeInto = (text: string) => {
+        proxy().value += text;
+        fireEvent.input(proxy(), { inputType: 'insertText', data: text });
+      };
+      const sentBytes = () => sendInput.mock.calls.map((c) => c[0] as string);
+
+      test('goes out unmodified and leaves an armed Alt armed for the next real key', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('ab');
+        fireEvent.click(key('Alt'));
+        vi.useFakeTimers();
+        try {
+          bare();
+          act(() => { vi.advanceTimersByTime(60); });
+          expect(sentBytes().at(-1)).toBe('\x7f');
+          expect(proxy().value).toBe('a');
+          expect(key('Alt').getAttribute('aria-pressed')).toBe('true');
+          typeInto('c');
+          expect(sentBytes().at(-1)).toBe('\x1bc');
+        } finally { vi.useRealTimers(); }
+      });
+
+      test('a bar key tapped inside the guard goes out after the DEL, not before it', async () => {
+        await renderTouch();
+        await waitFor(() => expect(proxy()).not.toBeNull());
+        typeInto('abc');
+        sendInput.mockClear();
+        vi.useFakeTimers();
+        try {
+          bare();
+          fireEvent.click(key('Dash'));
+          act(() => { vi.advanceTimersByTime(600); });
+          expect(sentBytes()).toEqual(['\x7f', '-']);
+        } finally { vi.useRealTimers(); }
+      });
+    });
+
     test('a one-shot Ctrl modifies the next typed character, then clears, visibly', async () => {
       await renderTouch();
       fireEvent.click(key('Control'));

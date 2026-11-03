@@ -5,8 +5,8 @@ import type { Terminal } from '@xterm/xterm';
 export type ClipboardLike = Pick<Clipboard, 'readText' | 'writeText'>;
 
 // Handles a clipboard key and returns true when `e` was one (the caller must not send it on).
-// `onPasted` runs after a paste has been handed to the terminal.
-export function handleClipboardKey(term: Terminal, e: KeyboardEvent, clipboard: ClipboardLike = navigator.clipboard, onPasted?: () => void): boolean {
+// `before` runs just before a paste is handed to the terminal, `after` just after.
+export function handleClipboardKey(term: Terminal, e: KeyboardEvent, clipboard: ClipboardLike = navigator.clipboard, hooks: { before?: () => void; after?: () => void } = {}): boolean {
   if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return false;
   if (e.code === 'KeyC') {
     if (term.hasSelection()) void clipboard.writeText(term.getSelection());
@@ -15,8 +15,9 @@ export function handleClipboardKey(term: Terminal, e: KeyboardEvent, clipboard: 
   if (e.code === 'KeyV') {
     void clipboard.readText().then((text) => {
       if (!text) return;
+      hooks.before?.();
       term.paste(text);
-      onPasted?.();
+      hooks.after?.();
     });
     return true;
   }
