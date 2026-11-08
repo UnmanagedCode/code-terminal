@@ -10,7 +10,7 @@ import { createSession } from '../api';
 import { checkoutLabel, type Checkout } from '../checkout';
 import type { Pane, SplitDir } from '../layout/tree';
 import { CloseIcon, SplitColIcon, SplitRowIcon } from '../icons';
-import { ExtraKeys } from './ExtraKeys';
+import { ExtraKeys } from './ExtraKeysBar';
 import { keySequence, Modifiers, type ExtraKeyId } from './extraKeys';
 import { attachClipboardKeys } from './keys';
 import { activateLink, linkTip, type LinkTip } from './links';
