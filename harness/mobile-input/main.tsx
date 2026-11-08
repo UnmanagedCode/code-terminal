@@ -5,7 +5,7 @@ import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { ExtraKeys } from '@/terminal/ExtraKeys';
+import { ExtraKeys } from '@/terminal/ExtraKeysBar';
 import { keySequence, Modifiers, type ExtraKeyId } from '@/terminal/extraKeys';
 import { disableTextAssist } from '@/terminal/softKeyboard';
 import { attachTouchInput } from '@/terminal/touchInput';

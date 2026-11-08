@@ -109,7 +109,7 @@ $HOME/.local/state/code-terminal/       same shell/ and history/ on any other Sy
 | `terminal/touchInput.ts` | `attachTouchInput`: the hidden `<input>` (password, then text) that takes touch typing; mirrors each `input` event to `Terminal.input` as DELs plus the new tail, maps Enter/Backspace/arrows/Tab/Escape/Ctrl-Alt keys, treats a bare 229 keydown/keyup pair as a Backspace (`BARE_GUARD_MS`), pastes through `Terminal.paste`, disables xterm's textarea and relays focus/blur to it; attached from `TerminalPane` by `[touch, opened]` |
 | `terminal/touchScroll.ts` | `attachTouchScroll(term, surface)`: sets `touch-action` on the surface (`pinch-zoom`, else `none`) and turns one-finger passive touch drags into `Terminal.scrollLines` (pixel accumulator over the `.xterm-screen` cell height; a second finger ends the gesture); attached to `.pane-body` from `TerminalPane` by `[touch, opened]` |
 | `terminal/useTouchDevice.ts` | `(hover: none)` via `useSyncExternalStore` |
-| `terminal/ExtraKeys.tsx` | the bar; `pointerdown` is prevented so focus stays, the action fires on `click` |
+| `terminal/ExtraKeysBar.tsx` | the bar; `pointerdown` is prevented so focus stays, the action fires on `click` |
 | `terminal/theme.ts` | host tokens → hex via a one-pixel canvas (xterm cannot parse oklch); follows theme flips |
 
 ## Tests
