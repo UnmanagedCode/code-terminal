@@ -23,7 +23,7 @@ Details: [docs/features.md](docs/features.md).
 - **Serving:** `server.js` listens on `127.0.0.1:$PORT` (default 4000), serves an allowlist of files from `frontend/dist`, and sends a CSP and `nosniff` on every response.
 - **Security:** every upgrade and API request passes an Origin/Host guard that refuses cross-site reads and mutations and any request naming the backend's own port (a direct dial, or DNS rebinding onto that port); mutations need a JSON content type. See [docs/protocol.md](docs/protocol.md#request-guard).
 - **Data:** `$CONDUCTOR_PLUGIN_DATA_DIR` (cc sets it to `<PROJECTS_ROOT>/.code-conductor/plugins/data/code-terminal`; layouts, history, shell integration); on other Systems `$HOME/.local/state/code-terminal/`.
-- **Host contract:** `index.html` loads `/pluginBridge.js` and `/pluginTheme.css`; all other URLs are relative; route state in `?project=<name>[&worktree=<name>]` (cc's menu sends `?ccProject=&ccWorktree=`, replaced by that route); open tabs in `localStorage` (`code-terminal:tabs`); width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
+- **Host contract:** `index.html` (served at `/plugins/code-terminal/`) loads `../../pluginBridge.js` and `../../pluginTheme.css`, so they resolve under whatever URL prefix cc is served at; all other URLs are relative; route state in `?project=<name>[&worktree=<name>]` (cc's menu sends `?ccProject=&ccWorktree=`, replaced by that route); open tabs in `localStorage` (`code-terminal:tabs`); width capped by `var(--cc-session-width, none)`; `frontend/src/cc-theme-fallback.css` keeps the page legible standalone.
 
 ```
 conductor.plugin.json   plugin manifest
